@@ -1,0 +1,403 @@
+{
+  "hybrid_routing": {
+    "web_search": true,
+    "expected_behavior": "System should combine RAG (SEC 10-K filings) with web search to answer questions that require both historical financial data and recent market developments. Answer should cite both sources and acknowledge which parts come from web vs. filings.",
+    "questions": [
+      "How has NVIDIA's data center dominance evolved from FY2024 to FY2026? Include both 10-K metrics and recent AI chip market news.",
+      "What does Microsoft's most recent 10-K say about Azure growth and cloud strategy, and what recent 2026 Copilot or AI product announcements have been made?",
+      "Describe Apple's services revenue trajectory from FY2023-FY2024 per its 10-K filings, plus any recent 2026 Apple Intelligence or services news."
+    ],
+    "ground_truth_map": {
+      "How has NVIDIA's data center dominance evolved from FY2024 to FY2026? Include both 10-K metrics and recent AI chip market news.": {
+        "ground_truth": "NVIDIA's data center segment has grown dramatically. In FY2025 the Data Center segment generated approximately $115.2B in revenue, representing the overwhelming majority of NVIDIA's total FY2025 revenue of approximately $130.5B. This compares to much lower data center revenues in FY2024. Quarterly trajectory: Q1 FY2026 total revenue reached $68.13B (73.2% YoY growth). NVIDIA's GPU market share in AI training workloads is estimated at approximately 80%+ by revenue. Web search should supplement with latest Blackwell GPU ramp data, recent competitor moves by AMD (MI300X/MI400), and any 2026 regulatory or export control news.",
+        "key_facts": [
+          "NVIDIA FY2025 Data Center revenue approximately $115.2B.",
+          "NVIDIA FY2025 total revenue approximately $130.5B.",
+          "NVIDIA Q1 FY2026 revenue $68.13B, up 73.2% YoY.",
+          "NVIDIA holds approximately 80% share in AI accelerator market.",
+          "Web search should provide 2026 AI chip competitive landscape and Blackwell GPU updates."
+        ]
+      },
+      "What does Microsoft's most recent 10-K say about Azure growth and cloud strategy, and what recent 2026 Copilot or AI product announcements have been made?": {
+        "ground_truth": "Microsoft's most recent 10-K reports the Intelligent Cloud segment as the primary growth driver, with Azure as the key product. Acceptable answer uses either FY2024 or FY2025 data depending on what the DB contains. FY2024 reference: Intelligent Cloud ~$105.4B, Azure ~29% constant-currency growth, total revenue ~$245.1B, operating income ~$109.4B. FY2025 reference (if retrieved): Intelligent Cloud ~$120B+, Azure ~34% growth. Both filings highlight Azure OpenAI Service, Microsoft 365 Copilot, and GitHub Copilot as key AI growth vectors. Web search should supplement with 2026 Copilot enterprise adoption data and Azure competitive positioning.",
+        "key_facts": [
+          "Microsoft Intelligent Cloud revenue: approximately $105.4B (FY2024) or higher if FY2025 data.",
+          "Azure growth: approximately 29% constant currency (FY2024) or approximately 34% (FY2025).",
+          "Azure OpenAI Service and Microsoft 365 Copilot as key AI product disclosures.",
+          "Web search should provide 2026 Copilot adoption stats and Azure competitive positioning.",
+          "Microsoft total revenue approximately $245.1B (FY2024) or higher if FY2025."
+        ]
+      },
+      "Describe Apple's services revenue trajectory from FY2023-FY2024 per its 10-K filings, plus any recent 2026 Apple Intelligence or services news.": {
+        "ground_truth": "Apple's Services segment (App Store, Apple Music, iCloud, Apple TV+, Apple Pay, licensing) is its fastest-growing and highest-margin segment. The database may contain either the FY2024 or FY2025 Apple 10-K. FY2024 (year ended Sep 2024) Services revenue was approximately $96.2B, up from approximately $85.2B in FY2023. Total FY2024 revenue was approximately $391.0B. If the FY2025 filing is retrieved: FY2025 Services revenue was approximately $109.16B (up from FY2024's $96.2B). Services gross margin is significantly higher than Products gross margin. Apple Intelligence AI features launched in FY2025. ACCEPTABLE ANSWER: Correctly identifies Services trajectory as growing YoY, cites figures from the retrieved filing year with proper year labels, and notes the Services segment has higher margins than Products. Web search should supplement with 2026 Apple Intelligence adoption metrics.",
+        "key_facts": [
+          "Apple FY2023 Services revenue approximately $85.2B.",
+          "Apple FY2024 Services revenue approximately $96.2B (or $109.16B if FY2025 filing retrieved and properly labeled).",
+          "Apple Services segment has higher gross margins than Products.",
+          "Apple Services is the fastest-growing and highest-margin segment.",
+          "Web search should provide 2026 Apple Intelligence adoption and new services news."
+        ]
+      }
+    }
+  },
+  "deep_retrieval": {
+    "web_search": false,
+    "expected_behavior": "System should retrieve and synthesize specific financial data from SEC 10-K filings. When exact segment-level breakdowns are unavailable in retrieved chunks, system must state this clearly and provide the available data (e.g., total revenues, disclosed segment categories). No fabrication of figures.",
+    "questions": [
+      "What are NVIDIA's reported business segments and their revenue contributions in FY2025?",
+      "Break down Microsoft's revenue by its three reportable segments (most recent 10-K available) and describe each segment.",
+      "What were Broadcom's FY2024 revenue segments after completing the VMware acquisition?"
+    ],
+    "ground_truth_map": {
+      "What are NVIDIA's reported business segments and their revenue contributions in FY2025?": {
+        "ground_truth": "NVIDIA operates in two reportable segments: (1) Compute & Networking (approximately $113.6B in FY2025) and (2) Graphics (approximately $15.9B in FY2025). Total FY2025 revenue was approximately $130.5B. In addition, NVIDIA disaggregates revenue by end market: Data Center (approximately $115.2B), Gaming (approximately $11.4B), Professional Visualization (approximately $1.9B), Automotive (approximately $1.7B), and OEM & Other (approximately $0.9B). ACCEPTABLE ANSWER: An answer that correctly names the two operating segments (Compute & Networking and Graphics) with approximate revenues is a PASS. An answer that provides the end-market breakdown (Data Center, Gaming, etc.) is also acceptable. Either presentation is valid. Data Center was by far the dominant revenue driver.",
+        "key_facts": [
+          "NVIDIA FY2025 total revenue approximately $130.5B.",
+          "NVIDIA two segments: Compute & Networking (~$113.6B) and Graphics (~$15.9B).",
+          "NVIDIA FY2025 Data Center end-market revenue approximately $115.2B.",
+          "NVIDIA FY2025 Gaming end-market revenue approximately $11.4B.",
+          "Data Center is NVIDIA's dominant end market driven by AI GPU demand."
+        ]
+      },
+      "What were Broadcom's FY2024 revenue segments after completing the VMware acquisition?": {
+        "ground_truth": "Broadcom's FY2024 10-K (year ended November 3, 2024) reports two segments following the VMware acquisition (completed November 22, 2023): (1) Semiconductor Solutions and (2) Infrastructure Software. The DB stores segment data as PERCENTAGES of net revenue: Semiconductor Solutions = 58%, Infrastructure Software = 42% for FY2024. Total FY2024 net revenue was $51,574M (approximately $51.6B). Dollar-derived figures: Semiconductor Solutions ≈ $29.9B (58% × $51.6B), Infrastructure Software ≈ $21.7B (42% × $51.6B). ACCEPTABLE ANSWER: An answer correctly reporting the two-segment structure with EITHER (a) percentage split (58% / 42%) plus total revenue, OR (b) derived dollar approximations (~$30B / ~$21.5B), is a PASS. The key is that both segments are named, total revenue is cited, and VMware's role in creating the Infrastructure Software segment is acknowledged. AI-related semiconductor revenue was approximately $12.2B. Infrastructure Software jumped from 21% (FY2023) to 42% (FY2024) due to VMware.",
+        "key_facts": [
+          "Broadcom FY2024 two segments: Semiconductor Solutions (58%) and Infrastructure Software (42%).",
+          "Broadcom FY2024 total revenue approximately $51.6B ($51,574M).",
+          "VMware acquisition completed November 2023 created the Infrastructure Software segment.",
+          "Infrastructure Software revenue share jumped from 21% (FY2023) to 42% (FY2024).",
+          "Semiconductor Solutions ≈ $30B and Infrastructure Software ≈ $21.5B (derived from % × total)."
+        ]
+      },
+      "Break down Microsoft's revenue by its three reportable segments (most recent 10-K available) and describe each segment.": {
+        "ground_truth": "Microsoft reports three segments. FY2024 (year ended June 2024): (1) Productivity and Business Processes: approximately $77.7B — Microsoft 365, Teams, LinkedIn, Dynamics 365; (2) Intelligent Cloud: approximately $105.4B — Azure, Windows Server, SQL Server, GitHub; (3) More Personal Computing: approximately $61.7B — Windows OEM, Surface, Xbox, Bing. Total FY2024 revenue approximately $245.1B. If FY2025 10-K is retrieved instead (year ended June 2025): (1) Productivity and Business Processes: approximately $120.8B — NOW THE LARGEST SEGMENT (August 2024 restructuring moved commercial Microsoft 365 components from IC into P&BP); (2) Intelligent Cloud: approximately $106.3B — Azure; (3) More Personal Computing: approximately $54.6B — Windows OEM, Surface, Xbox. Total FY2025 revenue approximately $281.7B. CALIBRATION: In FY2025, P&BP ($120.8B) is the largest segment, NOT Intelligent Cloud — this is correct per the DB. Either year accepted if all three segment names, descriptions, and revenue figures are reported.",
+        "key_facts": [
+          "Microsoft three segments: Productivity and Business Processes, Intelligent Cloud, More Personal Computing.",
+          "Intelligent Cloud includes Azure as primary growth driver.",
+          "Productivity and Business Processes includes Microsoft 365, Teams, LinkedIn.",
+          "Microsoft FY2024 total revenue approximately $245.1B (or FY2025 if most recent).",
+          "More Personal Computing includes Windows OEM, Surface, Xbox, and Search."
+        ]
+      }
+    }
+  },
+  "earnings_grounding": {
+    "web_search": false,
+    "expected_behavior": "Answer should include grounded statements from earnings transcripts when available. When transcript data is absent for a specific topic or company, system must clearly state this limitation and provide available 10-K financial data as supporting context. Direct fabrication of management quotes is an automatic fail. Responses citing actual 10-K data in lieu of unavailable transcripts are acceptable.",
+    "questions": [
+      "What did NVIDIA's management emphasize about data center demand and customer adoption in FY2025 earnings calls?",
+      "What did Meta's management discuss about AI infrastructure investment and spending plans in FY2024 earnings calls?",
+      "What did Netflix management say about subscriber growth and content strategy in FY2024 earnings calls?"
+    ],
+    "ground_truth_map": {
+      "What did NVIDIA's management emphasize about data center demand and customer adoption in FY2025 earnings calls?": {
+        "ground_truth": "NVIDIA's FY2025 earnings calls (Q1-Q4 FY2025) are available in the DB. Management emphasized: (1) broad customer adoption across cloud service providers (CSPs) including Microsoft Azure, AWS, Google Cloud; (2) Hopper GPU (H100/H200) demand described as 'exceptional', H200 as fastest product ramp in company history; (3) Blackwell GPU platform launch as next generation; (4) inference workloads driving 40%+ of data center revenue; (5) quarterly data center revenue figures such as Q3 FY2025 at $30.8B (up 112% YoY) and Q2 FY2025 at $22.6B. ACCEPTABLE ANSWER: An answer grounded in actual transcript chunks — citing quarterly revenue figures (e.g., $30.8B Q3, $22.6B Q2), CSP adoption language, or Hopper/Blackwell commentary — is a PASS. The answer need not cite the annual $115.2B figure; quarterly transcript data is the primary expected source. Do not penalize for citing real transcript figures that differ from the annual 10-K total.",
+        "key_facts": [
+          "NVDA Q3 FY2025 data center revenue $30.8B, up 17% sequentially and 112% YoY.",
+          "NVDA Q2 FY2025 data center revenue $22.6B.",
+          "NVIDIA H200 described as fastest product ramp in company history.",
+          "CSPs represented approximately half of data center sales in Q3 FY2025.",
+          "Inference drove more than 40% of data center revenue over trailing four quarters.",
+          "Blackwell GPU platform announced as next-generation successor to Hopper."
+        ]
+      },
+      "What did Meta's management discuss about AI infrastructure investment and spending plans in FY2024 earnings calls?": {
+        "ground_truth": "Meta's FY2024 earnings call transcripts are available in the DB. Key themes management discussed: (1) aggressive long-term CapEx and infrastructure investment — CEO Zuckerberg stated 'investing very heavily in CapEx and infrastructure is going to be a strategic advantage over time'; (2) Llama open-source LLM family as strategic AI investment; (3) AI-powered ad systems driving revenue growth; (4) Reality Labs investment despite operating losses; (5) Meta AI assistant rollout. Meta FY2024 total revenue approximately $164.5B (up ~21% YoY). Reality Labs operating loss approximately $17.7B. ACCEPTABLE ANSWER: An answer that cites actual transcript content (management quotes, CapEx commentary, AI strategy language) from FY2024 earnings calls is a PASS. Transcript-grounded specific statements (even if not verbatim from the GT) are the expected output. Do not penalize for citing real transcript quotes that go beyond the GT summary. CALIBRATION NOTE: The DB contains Meta transcripts spanning FY2024 and FY2025/2026. If the system retrieves and cites a FY2025 or FY2026 Meta transcript (e.g., labeled Q1-2026-META or Q4-2025-META) when asked about FY2024, this is a RETRIEVAL YEAR-MISMATCH, NOT fabrication. Score as PARTIAL (0.4-0.6), not FAIL. The transcript content exists in the DB and management themes (CapEx, AI strategy) are consistent across years. Only mark as FAIL if the answer contains entirely fabricated facts with no grounding in real transcript data.",
+        "key_facts": [
+          "Meta FY2024 total revenue approximately $164.5B.",
+          "Meta FY2024 Reality Labs operating loss approximately $17.7B.",
+          "Zuckerberg: CapEx and infrastructure investment is a long-term strategic advantage.",
+          "Meta's Llama open-source LLM family is central AI strategy.",
+          "AI-powered ad systems drove revenue growth across Family of Apps."
+        ]
+      },
+      "What did Netflix management say about subscriber growth and content strategy in FY2024 earnings calls?": {
+        "ground_truth": "Netflix FY2024 earnings call transcripts are available in the DB. Management discussed: (1) paid sharing enforcement — Q4 2024 saw approximately 19 million net subscriber additions driven by broad content slate; (2) advertising-supported tier — ads plan represented over 55% of signups in ads-available countries in Q4 2024; (3) live events content (sports, live TV) as a new content frontier; (4) password sharing enforcement boosting paid membership to approximately 300 million+ subscribers by end of FY2024; (5) revenue diversification through ads tier. Netflix FY2024 revenue was approximately $39B and operating margin improved significantly. ACCEPTABLE ANSWER: An answer grounded in real transcript data — citing Q4 2024 net adds (~19M), ads plan signups (>55%), or live events content strategy — is a PASS. Specific quarterly figures from the transcript are the primary expected source; do not penalize for quoting data not in this GT summary if it comes from a valid transcript chunk.",
+        "key_facts": [
+          "Netflix Q4 2024 net subscriber additions approximately 19 million.",
+          "Netflix ads plan represented over 55% of signups in ads countries in Q4 2024.",
+          "Netflix reached approximately 300 million paid subscribers by end of FY2024.",
+          "Netflix FY2024 revenue approximately $39B.",
+          "Live events content (sports, live TV) identified as new content strategy."
+        ]
+      }
+    }
+  },
+  "cross_company_reasoning": {
+    "web_search": false,
+    "expected_behavior": "System should retrieve data for multiple companies from SEC filings and perform comparative analysis. When direct comparison data is available, provide specific numbers. When one company's data is unavailable or sparse, acknowledge this explicitly. Do not fabricate figures for either company.",
+    "questions": [
+      "Compare AMD and Intel's FY2024 data center segment revenue, growth rates, and strategic positioning in AI.",
+      "Compare Cisco and Palo Alto Networks on FY2024 security revenue, margins, and platformization strategy.",
+      "Compare NVIDIA and Broadcom's AI-related semiconductor revenue and gross margins in FY2024."
+    ],
+    "ground_truth_map": {
+      "Compare AMD and Intel's FY2024 data center segment revenue, growth rates, and strategic positioning in AI.": {
+        "ground_truth": "AMD FY2024: Data Center segment revenue approximately $12.6B (up approximately 122% YoY), driven by MI300X GPU success in AI training/inference. Total AMD FY2024 revenue approximately $25.8B. AMD's GPU challenge to NVIDIA focuses on open software ecosystem (ROCm) and competitive TCO. Intel FY2024: Data Center and AI group (DCAI) revenue approximately $12.8B, but declining YoY as hyperscalers shifted spend to GPU-based AI infrastructure. Intel's Gaudi AI accelerator gained limited traction. Total Intel FY2024 revenue approximately $53B (declining). Intel restructuring program aimed to reduce costs by $10B by 2025. AMD's data center business grew while Intel's declined, reflecting a shift toward GPU-accelerated AI workloads.",
+        "key_facts": [
+          "AMD FY2024 Data Center revenue approximately $12.6B, up approximately 122% YoY.",
+          "AMD FY2024 total revenue approximately $25.8B.",
+          "Intel FY2024 Data Center and AI revenue approximately $12.8B, declining YoY.",
+          "Intel FY2024 total revenue approximately $53B, declining YoY.",
+          "AMD MI300X GPU drove data center growth; Intel Gaudi accelerator saw limited adoption."
+        ]
+      },
+      "Compare Cisco and Palo Alto Networks on FY2024 security revenue, margins, and platformization strategy.": {
+        "ground_truth": "Cisco FY2024 (year ended July 2024): Total revenue approximately $56.2B; security revenue approximately $5.1B post-Splunk (acquired March 2024 for $28B). Platformization strategy: security + networking convergence via Splunk SIEM/SOAR. Palo Alto Networks FY2024 (year ended July 2024): Total revenue approximately $8.0B; subscription/support approximately $7.0B (~20% YoY growth). PANW gross margin approximately 74-76%, higher than Cisco's blended margin. PANW platformization: SASE (Prisma SASE), CNAPP (Prisma Cloud), AI-SOC (Cortex XSIAM). CALIBRATION NOTE: The DB may only contain FY2025 or FY2026 10-K/transcript data for Cisco and PANW. An answer that reports the MOST RECENT AVAILABLE fiscal year data from the DB (even if that is FY2025 or Q1 FY2026) while correctly describing PANW's platformization strategy and the Cisco-Splunk integration is ACCEPTABLE. FY2024-specific numbers are preferred but most-recent-available data is a valid PARTIAL answer. Key requirements: (1) both companies compared, (2) PANW platformization described (Prisma/Cortex), (3) PANW higher gross margins than Cisco acknowledged.",
+        "key_facts": [
+          "Cisco FY2024 total revenue approximately $56.2B; security revenue approximately $5.1B post-Splunk.",
+          "Cisco acquired Splunk in March 2024 for approximately $28B.",
+          "Palo Alto Networks FY2024 total revenue approximately $8.0B (or most recent available).",
+          "PANW platformization: SASE (Prisma), CNAPP (Prisma Cloud), AI-SOC (Cortex XSIAM).",
+          "PANW gross margin approximately 74-76%, higher than Cisco's blended gross margin."
+        ]
+      },
+      "Compare NVIDIA and Broadcom's AI-related semiconductor revenue and gross margins in FY2024.": {
+        "ground_truth": "NVIDIA FY2025 (calendar year 2024 roughly aligns): Data Center revenue approximately $115.2B with overall gross margin approximately 74-75% in FY2025. NVIDIA's AI revenue comes primarily from H100/H200 GPU training clusters sold to hyperscalers. Broadcom FY2024: AI-related semiconductor revenue approximately $12.2B, primarily from custom AI accelerators (XPUs) for Google (TPU), Meta, and others. Broadcom's semiconductor gross margin is approximately 67-70%. NVIDIA's AI revenue is approximately 9-10x larger than Broadcom's, though Broadcom's custom XPU model offers differentiated value to hyperscalers wanting alternatives to NVIDIA. Both companies benefit from the same AI infrastructure spending wave.",
+        "key_facts": [
+          "NVIDIA FY2025 Data Center revenue approximately $115.2B; gross margin approximately 74-75%.",
+          "Broadcom FY2024 AI-related semiconductor revenue approximately $12.2B.",
+          "Broadcom semiconductor gross margin approximately 67-70%.",
+          "NVIDIA serves general-purpose GPU market; Broadcom serves custom XPU hyperscaler market.",
+          "Both NVIDIA and Broadcom benefit from AI infrastructure capex by major cloud providers."
+        ]
+      }
+    }
+  },
+  "context_aggregation": {
+    "web_search": false,
+    "expected_behavior": "System should aggregate and synthesize information across multiple years or multiple 10-K sections. Provide trends, not just single-point data. If data for a specific year is missing from retrieved context, acknowledge the gap. Do not extrapolate or fabricate year-over-year figures.",
+    "questions": [
+      "How has Meta's revenue mix between Family of Apps and Reality Labs evolved from FY2022 to FY2024?",
+      "Trace Amazon Web Services revenue growth and operating margin from FY2022 to FY2024 based on annual reports.",
+      "What strategic themes are consistent across Microsoft's FY2023 and FY2024 annual reports regarding cloud and AI?"
+    ],
+    "ground_truth_map": {
+      "How has Meta's revenue mix between Family of Apps and Reality Labs evolved from FY2022 to FY2024?": {
+        "ground_truth": "Meta reports two segments. Family of Apps (FAP) includes Facebook, Instagram, WhatsApp, Messenger, and Reels advertising revenue. Reality Labs (RL) includes Quest VR headsets and metaverse investment. FY2022: FAP revenue approximately $114.5B; RL revenue approximately $2.2B; RL operating loss approximately $13.7B. FY2023: FAP revenue approximately $131.9B (recovery year); RL revenue approximately $1.9B; RL operating loss approximately $16.1B. FY2024: FAP revenue approximately $162.4B (strong growth driven by AI-powered ads); RL revenue approximately $2.1B; RL operating loss approximately $17.7B. Family of Apps remains 98-99% of total revenue; Reality Labs losses widened each year while VR hardware revenue stayed flat. Meta AI ad optimization drove FAP's strong FY2024 growth. NOTE FOR EVALUATION: This is a multi-year trend question spanning FY2022-FY2024. The database may only contain a subset of Meta's annual filings. An answer that correctly identifies the revenue trajectory using any available combination of retrieved context plus well-known public figures is acceptable. Do NOT penalize an answer solely because some figures come from the model's knowledge of public Meta financials — the key test is whether the numbers are directionally correct and consistent with the ground truth values above.",
+        "key_facts": [
+          "Meta FY2022 Family of Apps revenue approximately $114.5B.",
+          "Meta FY2023 Family of Apps revenue approximately $131.9B.",
+          "Meta FY2024 Family of Apps revenue approximately $162.4B.",
+          "Meta Reality Labs operating loss approximately $13.7B (FY2022), $16.1B (FY2023), $17.7B (FY2024).",
+          "Family of Apps represents 98-99% of Meta total revenue across FY2022-FY2024."
+        ]
+      },
+      "Trace Amazon Web Services revenue growth and operating margin from FY2022 to FY2024 based on annual reports.": {
+        "ground_truth": "AWS financial trajectory: FY2022: AWS revenue approximately $80.1B ($80,096M — NOTE: FY2021 was $62.2B; do NOT confuse these years), operating income approximately $22.8B (operating margin approximately 28-29%). FY2023: AWS revenue approximately $90.8B (up ~13%), operating income approximately $24.6B (margin approximately 27% — slight dip). FY2024: AWS revenue approximately $107.6B (up ~19%), operating income approximately $39.8B (margin approximately 37% — strong recovery). AWS represents Amazon's highest-margin business and primary profit engine. Amazon total FY2024 revenue approximately $638B. CALIBRATION: FY2022 AWS revenue was $80.1B NOT $62.2B (common confusion with FY2021 figure). The DB may only have operating income data for FY2022 and FY2021 from older 10-K filings; if FY2023 and FY2024 operating margins are not available in context, the response should acknowledge this gap rather than fabricate. An answer with correct revenue trajectory (FY2022→FY2023→FY2024) plus available operating income data is a strong PASS.",
+        "key_facts": [
+          "AWS FY2022 revenue approximately $80.1B (NOT $62.2B — that was FY2021).",
+          "AWS FY2023 revenue approximately $90.8B, operating income approximately $24.6B.",
+          "AWS FY2024 revenue approximately $107.6B, operating income approximately $39.8B.",
+          "AWS FY2024 operating margin approximately 37%, recovering from FY2023 dip.",
+          "AWS is Amazon's highest-margin segment and primary profit generator."
+        ]
+      },
+      "What strategic themes are consistent across Microsoft's FY2023 and FY2024 annual reports regarding cloud and AI?": {
+        "ground_truth": "Microsoft's FY2023 and FY2024 10-K filings consistently emphasize: (1) Azure as the primary growth engine within Intelligent Cloud, with consistent 27-29% YoY growth in constant currency; (2) AI integration across all product lines — Azure OpenAI Service (partnership with OpenAI), Microsoft 365 Copilot, GitHub Copilot, Dynamics 365 Copilot, Bing AI; (3) The 'Copilot' branding as Microsoft's AI assistant strategy embedded across productivity tools; (4) Responsible AI principles and governance as an enterprise differentiator; (5) Intelligent Cloud segment generating approximately $87.9B (FY2023) and approximately $105.4B (FY2024). Both filings highlight Microsoft's position as cloud #2 globally after AWS and emphasize AI as the primary competitive differentiation.",
+        "key_facts": [
+          "Microsoft Intelligent Cloud FY2023 approximately $87.9B; FY2024 approximately $105.4B.",
+          "Azure growth rate approximately 27-29% constant currency across FY2023 and FY2024.",
+          "Microsoft 365 Copilot and GitHub Copilot as AI assistant strategy across both years.",
+          "Azure OpenAI Service as key cloud AI offering in both FY2023 and FY2024.",
+          "Both annual reports emphasize responsible AI governance as enterprise differentiator."
+        ]
+      }
+    }
+  },
+  "adaptive_response": {
+    "web_search": false,
+    "expected_behavior": "System should adapt the response format and depth to what the database can support. For broad strategy questions, synthesize from 10-K risk factors, business overview, and MD&A sections. If specific numeric data is requested but unavailable, clearly state the limitation. Use available data, never fabricate.",
+    "questions": [
+      "What competitive advantages and moats does NVIDIA describe in its most recent 10-K filing?",
+      "What does Salesforce's most recent 10-K say about its AI product strategy and revenue growth drivers?",
+      "What does Tesla's most recent 10-K say about its energy business and Autopilot/FSD competitive positioning?"
+    ],
+    "ground_truth_map": {
+      "What competitive advantages and moats does NVIDIA describe in its most recent 10-K filing?": {
+        "ground_truth": "NVIDIA's FY2025 10-K describes several competitive advantages: (1) CUDA software ecosystem — dominant GPU programming platform with strong switching costs; (2) Full-stack AI platform — GPU hardware (H100/H200/B200), networking (InfiniBand/Ethernet), software libraries (cuDNN, cuBLAS), frameworks (NeMo, TensorRT); (3) DGX/HGX systems and NVLink interconnects for multi-GPU training; (4) Strong hyperscaler relationships (AWS, Azure, GCP). NVIDIA acknowledges competitive risks from AMD, Intel, and custom silicon (Google TPU, Amazon Trainium, Microsoft Maia). CALIBRATION NOTE: The DB may only contain NVIDIA financial tables and segment revenue data, NOT the narrative MD&A or competitive strengths sections of the 10-K. If the pipeline honestly reports 'competitive strategy narrative is not present in the retrieved context chunks, only financial data is available,' this is ACCEPTABLE as a PARTIAL answer (score 0.5-0.6). A response that describes what IS available (segment revenues, GPU architecture names, key customer relationships from financial disclosures) while acknowledging the competitive strategy narrative is absent from context is NOT a fail. Only hallucinated competitive moats are a fail.",
+        "key_facts": [
+          "NVIDIA CUDA ecosystem and full-stack AI platform are key competitive advantages.",
+          "NVIDIA DGX/HGX systems with NVLink interconnects for multi-GPU training.",
+          "Competitive risks: AMD, Intel, hyperscaler custom silicon (Google TPU, Amazon Trainium).",
+          "NVIDIA strong hyperscaler relationships (AWS, Azure, GCP).",
+          "If competitive narrative not in DB context: honest statement of limitation is a PARTIAL pass, not a fail."
+        ]
+      },
+      "What does Salesforce's most recent 10-K say about its AI product strategy and revenue growth drivers?": {
+        "ground_truth": "Salesforce's FY2025 10-K (year ended January 2025) highlights AI as the central growth driver: (1) Agentforce — agentic AI layer enabling autonomous AI agents to handle customer service, sales, and business processes across the Customer 360 platform; (2) Einstein AI — embedded AI features across Sales Cloud, Service Cloud, Marketing Cloud, and Commerce Cloud; (3) Data Cloud — unified data platform enabling AI to run on customer's own data; (4) Customer 360 platform — unifying sales, service, marketing, and commerce. FY2025 total revenue approximately $37.9B (subscription and support approximately $35.8B). Operating cash flow approximately $13.1B. Management identifies AI as the 'third wave' of Salesforce growth after CRM and cloud.",
+        "key_facts": [
+          "Salesforce FY2025 total revenue approximately $37.9B.",
+          "Agentforce: agentic AI layer for autonomous AI agents across Customer 360.",
+          "Einstein AI embedded across Sales Cloud, Service Cloud, Marketing Cloud.",
+          "Salesforce Data Cloud enables AI to operate on customer-owned data.",
+          "Salesforce FY2025 operating cash flow approximately $13.1B."
+        ]
+      },
+      "What does Tesla's most recent 10-K say about its energy business and Autopilot/FSD competitive positioning?": {
+        "ground_truth": "Tesla's most recent 10-K highlights two key growth areas beyond automotive: (1) Energy Generation and Storage — Megapack utility-scale battery storage and Powerwall home storage. Energy segment FY2024 revenue approximately $10.1B with improving margins; Megapack demand exceeded supply in FY2024. (2) Autopilot/FSD — Tesla's Full Self-Driving system is described as a key competitive differentiator with neural network training using fleet-scale real-world data. Tesla FY2024 total revenue approximately $97.7B with Automotive revenue approximately $77.1B. FSD subscription revenue contributes to Services and Other segment approximately $10.1B. Tesla positions AI and autonomy (Optimus robot, Robotaxi) as long-term value drivers. The 10-K acknowledges competitive risks from traditional OEMs and technology companies entering autonomous driving.",
+        "key_facts": [
+          "Tesla FY2024 Energy segment revenue approximately $10.1B.",
+          "Tesla Megapack utility-scale battery storage: demand exceeded supply in FY2024.",
+          "Tesla FY2024 total revenue approximately $97.7B.",
+          "Tesla FSD uses fleet-scale neural network training as key technological differentiation.",
+          "Tesla automotive revenue approximately $77.1B in FY2024."
+        ]
+      }
+    }
+  },
+  "web_trigger": {
+    "web_search": true,
+    "expected_behavior": "System should recognize these questions require current/real-time data unavailable in 10-K filings and trigger web search. Answers must be based on web search results. System should clearly indicate the information comes from web sources and note the retrieval date.",
+    "questions": [
+      "What is NVIDIA's current stock price and how did it perform in its most recent quarterly earnings report?",
+      "What are the latest AI regulatory developments in the US and EU that could affect major technology companies in 2026?",
+      "What recent mergers, acquisitions, or major partnerships have been announced in the semiconductor industry in 2025-2026?"
+    ],
+    "ground_truth_map": {
+      "What is NVIDIA's current stock price and how did it perform in its most recent quarterly earnings report?": {
+        "ground_truth": "This question requires real-time market data. System must trigger web_only search. EXPECTED WEB-RETRIEVED ANSWER (as of early-mid 2026): NVIDIA stock price approximately $188-$216 range (52-week range $110.82-$216.83). Most recent quarterly report = Q4 FY2026: record revenue of $68.1 billion (up 20% QoQ, up 73% YoY), EPS $1.62 vs estimated $1.50 (beat). Stock dropped ~5% post-earnings despite the beat due to investor concerns. CRITICAL CALIBRATION: These figures ($68.1B, $1.62 EPS, $188.89 stock price) are REAL data retrieved from Tavily web search — NOT hallucinations. The judge must NOT mark these as fabricated. Any answer that correctly cites web-retrieved NVIDIA stock price and Q4 FY2026 earnings results with news citations [NEWS-N] is a PASS. The judge should treat Feb-May 2026 NVIDIA data as valid real-world data, not future speculation.",
+        "key_facts": [
+          "Web search required; system must use web_only routing.",
+          "NVIDIA Q4 FY2026 revenue: $68.1B (record quarter, up 73% YoY) — real reported figure.",
+          "NVIDIA Q4 FY2026 EPS: $1.62 actual vs $1.50 estimated — earnings beat.",
+          "NVIDIA stock price approximately $188-189 (as retrieved from web, Feb-May 2026 range).",
+          "Stock dropped ~5% post-earnings despite beat — web-retrieved real fact."
+        ]
+      },
+      "What are the latest AI regulatory developments in the US and EU that could affect major technology companies in 2026?": {
+        "ground_truth": "This question requires current regulatory news from 2025-2026 that is not in historical SEC filings. System must trigger web search and report on: EU AI Act implementation milestones, US Executive Orders on AI safety/export controls, Congressional AI legislation proposals, and any AI liability or transparency rules. Acceptable answer must cite web-sourced current developments, reference relevant jurisdictions (EU, US, UK), and note which companies (NVDA, MSFT, GOOGL, META) are most affected. Answer should clearly note it is based on web search results.",
+        "key_facts": [
+          "Web search required for current 2025-2026 AI regulatory news.",
+          "EU AI Act is primary European regulatory framework for AI.",
+          "US executive orders on AI safety and export controls are key US regulatory vectors.",
+          "Answer should cite specific regulatory actions retrieved from web sources."
+        ]
+      },
+      "What recent mergers, acquisitions, or major partnerships have been announced in the semiconductor industry in 2025-2026?": {
+        "ground_truth": "This question requires current M&A news from 2025-2026 not available in historical 10-K filings. System must trigger web search and report on major semiconductor deals, partnerships, or joint ventures announced in 2025-2026. Acceptable answer: cites specific deals by name and acquirer/target, notes deal value if reported, and covers relevant companies (NVDA, AMD, INTC, AVGO, AMAT, LRCX, etc.). Answer must clearly note it is based on web search and include approximate news date.",
+        "key_facts": [
+          "Web search required for 2025-2026 M&A and partnership news.",
+          "Answer should name specific deals with acquirer, target, and approximate value.",
+          "Relevant sector companies: NVDA, AMD, INTC, AVGO, AMAT, LRCX, TSMC.",
+          "Answer should cite web source and indicate recency of information."
+        ]
+      }
+    }
+  },
+  "strict_rag_only": {
+    "web_search": false,
+    "expected_behavior": "System should answer exclusively from SEC 10-K filing data without using web search. When a question asks for data that is in the database, provide it with citations. If the database doesn't contain the requested data, system must explicitly state this and NOT speculate or use general knowledge. No web search should be triggered.",
+    "questions": [
+      "What does Alphabet/Google's FY2024 10-K say about its three primary revenue segments and their performance?",
+      "According to Amazon's FY2024 10-K, what were its total revenues, operating income, and the primary drivers of growth?",
+      "What risk factors related to competition and AI does NVIDIA disclose in its FY2025 10-K?"
+    ],
+    "ground_truth_map": {
+      "What does Alphabet/Google's FY2024 10-K say about its three primary revenue segments and their performance?": {
+        "ground_truth": "Alphabet's FY2024 10-K reports three segments: (1) Google Services: approximately $304.9B in revenue (Google Search $198.1B + YouTube ads $36.1B + Google Network $30.4B + Google subscriptions/platforms/devices $40.3B = Google Services total $304.9B). This is by far the largest segment. (2) Google Cloud: approximately $43.2B in FY2024 (up approximately 29% YoY), achieving operating profitability ($6.1B operating income). Google Cloud includes GCP infrastructure and Google Workspace productivity tools. (3) Other Bets: approximately $1.6B, includes Waymo, Verily, and other early-stage ventures with operating losses (~$4.4B). Total Alphabet FY2024 revenue approximately $350B. Google Search remains the dominant revenue driver within Google Services. CALIBRATION: The segment revenue data is in the DB as a table chunk (filing_year=2025). If the pipeline correctly identifies the three segment names (Google Services, Google Cloud, Other Bets) and retrieves any FY2024 figures from the filing, this is a PASS. If it identifies the segments but cannot find specific revenue figures, this is an ACCEPTABLE PARTIAL answer (score 0.5-0.6). Only a complete failure to name the segments, or fabricated numbers not from the filing, is a FAIL.",
+        "key_facts": [
+          "Alphabet FY2024 Google Services revenue approximately $304.9B (NOT $326B).",
+          "Alphabet FY2024 Google Cloud revenue approximately $43.2B, up approximately 29% YoY.",
+          "Alphabet FY2024 Other Bets revenue approximately $1.6B.",
+          "Alphabet FY2024 total revenue approximately $350B.",
+          "Google Cloud achieved operating profitability in FY2024 ($6.1B operating income)."
+        ]
+      },
+      "According to Amazon's FY2024 10-K, what were its total revenues, operating income, and the primary drivers of growth?": {
+        "ground_truth": "Amazon's FY2024 10-K reports: Total net sales approximately $637.9B (up approximately 11% YoY). Operating income approximately $68.6B (up approximately 86% YoY — significant margin expansion). Key drivers: (1) AWS: approximately $107.6B revenue (up 19%), operating income approximately $39.8B — primary profit engine with 37% operating margin; (2) Advertising Services: approximately $56.2B (up 18%) — high-margin business embedded across marketplace and Prime Video; (3) North America retail: improving margins as fulfillment network optimized; (4) International: approaching breakeven. Amazon's FY2024 was characterized by strong operating leverage after years of investment, with AWS and Advertising being the key profit contributors.",
+        "key_facts": [
+          "Amazon FY2024 total net sales approximately $637.9B.",
+          "Amazon FY2024 total operating income approximately $68.6B.",
+          "AWS FY2024 revenue approximately $107.6B; operating income approximately $39.8B.",
+          "Amazon Advertising Services FY2024 revenue approximately $56.2B.",
+          "Amazon FY2024 operating income grew approximately 86% YoY due to operating leverage."
+        ]
+      },
+      "What risk factors related to competition and AI does NVIDIA disclose in its FY2025 10-K?": {
+        "ground_truth": "NVIDIA's FY2025 10-K discloses several competition and AI-related risk factors: (1) Competition from AMD, Intel, and other GPU vendors in gaming and data center markets; (2) Hyperscaler custom silicon risk — major cloud providers (Google TPU, Amazon Trainium/Inferentia, Microsoft Maia, Meta MTIA) developing in-house AI chips to reduce NVIDIA dependence; (3) Export control risks — US government restrictions on advanced chip exports to China (NVIDIA A100, H100 restrictions) limiting addressable market; (4) Customer concentration risk — a small number of hyperscaler customers represent large portions of data center revenue; (5) Technology transition risk — rapid AI model evolution could shift GPU architecture requirements. The 10-K acknowledges NVIDIA's near-monopoly position creates regulatory and geopolitical scrutiny.",
+        "key_facts": [
+          "NVIDIA discloses competition from AMD, Intel in GPU markets.",
+          "Hyperscaler custom silicon (Google TPU, Amazon Trainium, Microsoft Maia) is a disclosed risk.",
+          "US export controls on H100/A100 exports to China are a disclosed risk factor.",
+          "Customer concentration among cloud providers is a disclosed risk.",
+          "Regulatory scrutiny of NVIDIA's market position is disclosed."
+        ]
+      }
+    }
+  },
+  "hallucination_control": {
+    "web_search": false,
+    "expected_behavior": "System must refuse to fabricate data for companies or topics not in the database. When asked about a private company, a company not in the database, or data that clearly cannot be in SEC filings (e.g., future projections presented as fact), the system must clearly state the data is unavailable and explain why. A response that fabricates specific numbers for unavailable data is an automatic fail.",
+    "questions": [
+      "What does SpaceX's FY2024 10-K report as its total revenue and operating margin?",
+      "What specific revenue figures and profit margins did Stripe report in its FY2024 annual report?",
+      "What did OpenAI report as its total revenue and net income in its FY2024 annual filing?"
+    ],
+    "ground_truth_map": {
+      "What does SpaceX's FY2024 10-K report as its total revenue and operating margin?": {
+        "ground_truth": "SpaceX is a private company and does not file 10-K reports with the SEC. There is no SpaceX annual report in any financial database. The system must clearly state that SpaceX is a private company, that no SEC filings exist for SpaceX, and that it cannot provide specific revenue or margin figures. Any fabricated SpaceX revenue numbers should be marked as a hallucination failure. The system may note that SpaceX revenue estimates from secondary sources range widely but these are not from official filings.",
+        "key_facts": [
+          "NOT_IN_DATABASE",
+          "SpaceX is a private company with no SEC filings.",
+          "No 10-K or annual report is available for SpaceX."
+        ]
+      },
+      "What specific revenue figures and profit margins did Stripe report in its FY2024 annual report?": {
+        "ground_truth": "Stripe is a private fintech company and does not file annual reports with the SEC. No official Stripe financial data is available in public databases or SEC filings. The system must clearly state that Stripe is private, that no annual report is publicly available, and that it cannot provide specific revenue or margin figures. Any fabricated Stripe revenue or margin data is a hallucination failure. The system may note that Stripe's valuation has been estimated in media reports but these are not verified financials.",
+        "key_facts": [
+          "NOT_IN_DATABASE",
+          "Stripe is a private company with no SEC filings.",
+          "No official Stripe revenue or margin data is publicly available."
+        ]
+      },
+      "What did OpenAI report as its total revenue and net income in its FY2024 annual filing?": {
+        "ground_truth": "OpenAI is a private company (structured as a capped-profit LLC) and does not file 10-K reports with the SEC. No official OpenAI annual report is available in public financial databases. The system must clearly state OpenAI's private status, the absence of SEC filings, and the inability to provide verified revenue or net income figures. Any fabricated OpenAI financials should be flagged as hallucination. The system may note that press reports cited OpenAI revenue of approximately $3-4B annualized in 2024 but these are unverified media estimates, not SEC-filed financials.",
+        "key_facts": [
+          "NOT_IN_DATABASE",
+          "OpenAI is a private capped-profit company with no SEC filings.",
+          "No verified OpenAI revenue or net income figures are in any public database."
+        ]
+      }
+    }
+  },
+  "edge_cases": {
+    "web_search": false,
+    "expected_behavior": "System should handle unusual, ambiguous, or malformed inputs gracefully. For queries with extractable financial intent, attempt to answer. For queries that are completely unintelligible or impossibly broad, acknowledge the limitation politely and ask for clarification or narrow the scope. System should never crash or produce an error response.",
+    "questions": [
+      "nvda fy25 rev???",
+      "Tell me everything about every technology company that has ever existed, their complete financial history, all their products, strategies, and future plans.",
+      "Which semiconductor company in the database had the highest revenue growth rate in their most recent fiscal year?"
+    ],
+    "ground_truth_map": {
+      "nvda fy25 rev???": {
+        "ground_truth": "Despite being a terse/informal query, the system should correctly extract the intent: NVIDIA FY2025 revenue. The pipeline should identify ticker NVDA, fiscal year FY2025, and the metric 'revenue'. A good response states NVIDIA FY2025 total revenue was approximately $130.5B, dominated by the Data Center segment (~$115.2B). The system should handle abbreviated/informal input without failing. Graceful handling of shorthand notation and question marks is expected. A response that correctly identifies NVIDIA FY2025 revenue figures should pass.",
+        "key_facts": [
+          "NVIDIA FY2025 total revenue approximately $130.5B.",
+          "System correctly extracts NVDA ticker from abbreviated query.",
+          "System correctly maps 'fy25' to fiscal year 2025.",
+          "NVIDIA FY2025 Data Center revenue approximately $115.2B."
+        ]
+      },
+      "Tell me everything about every technology company that has ever existed, their complete financial history, all their products, strategies, and future plans.": {
+        "ground_truth": "This is an impossibly broad query that cannot be answered comprehensively. The system should respond gracefully by: (1) acknowledging the query is too broad to answer completely, (2) offering to narrow the scope to specific companies, metrics, or time periods, (3) perhaps providing a brief overview of what data is available in the database (approximately 27 companies across SEC 10-K filings). A response that attempts to answer some portion of this (e.g., top companies in the DB) while acknowledging the scope limitation is acceptable. A response that crashes, returns an error, or fabricates fictional companies is a fail.",
+        "key_facts": [
+          "BROAD_QUERY_HANDLED",
+          "System acknowledges query is too broad to answer completely.",
+          "System offers to narrow scope or asks for clarification.",
+          "System should not crash or return a system error."
+        ]
+      },
+      "Which semiconductor company in the database had the highest revenue growth rate in their most recent fiscal year?": {
+        "ground_truth": "This is a valid but open-ended comparison requiring the system to identify semiconductor companies in the database and compare their most recent revenue growth rates. Acceptable answer: identifies NVIDIA as having the highest growth (approximately 114% YoY in FY2025) among semiconductor companies, followed by AMD (~14% YoY FY2024), with Intel declining. The pipeline should handle the 'which company' framing without a pre-specified ticker, search across multiple semiconductor companies (NVDA, AMD, INTC, AVGO, AMAT, LRCX), and return a comparison. A response identifying NVIDIA as the top growth company with supporting revenue data is a pass.",
+        "key_facts": [
+          "NVIDIA had highest FY2025 revenue growth among database semiconductor companies.",
+          "NVIDIA FY2025 revenue growth approximately 114% YoY ($130.5B vs $60.9B FY2024).",
+          "AMD FY2024 revenue growth approximately 14% YoY.",
+          "Intel FY2024 revenue declined YoY.",
+          "System should compare across multiple companies without a pre-specified single ticker."
+        ]
+      }
+    }
+  }
+}

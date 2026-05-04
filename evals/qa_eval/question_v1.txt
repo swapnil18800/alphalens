@@ -1,0 +1,88 @@
+{
+  "single_company_deep_dives": {
+    "expected_behavior": "Answer should provide detailed, grounded information from a single company’s 10-K with specific figures and proper citations.",
+    "questions": [
+      "What were NVIDIA's primary revenue segments in FY2026 and how much did each contribute?",
+      "What risk factors did Apple list in their most recent 10-K related to supply chain?"
+    ]
+  },
+  "earnings_transcript_analysis": {
+    "expected_behavior": "Answer should reference earnings transcripts with specific statements or quotes from management and proper attribution.",
+    "questions": [
+      "What did IBM's management say about AI consulting demand in their earnings call?",
+      "What did Meta's CEO say about capital expenditure plans for AI infrastructure?"
+    ]
+  },
+  "cross_company_comparisons": {
+    "expected_behavior": "Answer should compare multiple companies with structured output and include data points from each entity.",
+    "questions": [
+      "Compare NVIDIA and AMD's revenue growth rates from FY2024 to FY2026",
+      "Compare Apple and Microsoft's R&D spending as a percentage of revenue over the last two years"
+    ]
+  },
+  "trend_analysis": {
+    "expected_behavior": "Answer should present multi-year trends with consistent data, ideally structured (table or clear progression).",
+    "questions": [
+      "How has NVIDIA's gross margin changed from FY2023 to FY2026?",
+      "Show Amazon's AWS segment revenue growth across the last three fiscal years"
+    ]
+  },
+  "specific_financial_metrics": {
+    "expected_behavior": "Answer should return precise numeric financial metrics with correct units and citations from source documents.",
+    "questions": [
+      "What was Google's operating cash flow in FY2025?",
+      "What is the total goodwill on Microsoft's balance sheet as of their latest 10-K?"
+    ]
+  },
+  "out_of_scope_rejection": {
+    "expected_behavior": "Model should refuse the query politely with a clear explanation and not attempt to hallucinate an answer.",
+    "questions": [
+      "What is the current stock price of NVDA?",
+      "Should I buy Tesla stock right now?"
+    ]
+  },
+  "limited_capability_uncertainty": {
+    "expected_behavior": "Model should acknowledge lack of data or coverage and respond honestly without hallucination.",
+    "questions": [
+      "What are Stripe's revenue figures for FY2025?",
+      "What did NVIDIA say in their most recent quarterly earnings (Q3 FY2027)?"
+    ]
+  },
+  "rag_only_queries": {
+    "expected_behavior": "Answer should rely only on retrieved internal documents with citations and should not use web search.",
+    "questions": [
+      "What were NVIDIA's primary revenue segments in FY2026?",
+      "How did Apple describe supply chain risks in their latest 10-K?"
+    ]
+  },
+  "web_only_queries": {
+    "expected_behavior": "Answer should be based on web search results and include recent or external information; internal retrieval should not be used.",
+    "web_search": true,
+    "questions": [
+      "What is Stripe's latest funding or valuation news?",
+      "What are recent analyst predictions for Tesla's stock price?"
+    ]
+  },
+  "hybrid_queries": {
+    "expected_behavior": "Answer should combine internal document retrieval with web search results and clearly integrate both sources.",
+    "web_search": true,
+    "questions": [
+      "Compare NVIDIA's disclosed capex with recent analyst expectations",
+      "What are Apple's announced AI initiatives beyond their latest 10-K?"
+    ]
+  },
+  "multi_part_complex": {
+    "expected_behavior": "Answer should address all parts of the question in a structured format, covering multiple entities or aspects comprehensively.",
+    "questions": [
+      "Compare NVIDIA, AMD, and Intel's data center revenue, gross margins, and capex guidance",
+      "For NVDA, what are (a) top risk factors, (b) revenue breakdown, (c) management priorities?"
+    ]
+  },
+  "edge_cases": {
+    "expected_behavior": "Model should handle unusual or invalid input gracefully without crashing or hallucinating.",
+    "questions": [
+      "aslkdjf lksdjf lksdjflsdf",
+      "What companies do you have data for?"
+    ]
+  }
+}

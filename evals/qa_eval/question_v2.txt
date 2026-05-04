@@ -1,0 +1,247 @@
+{
+  "hybrid_routing": {
+    "web_search": true,
+    "expected_behavior": "System should combine RAG (10-K + earnings) with web search only when needed. Must respect web_search_flag strictly.",
+    "questions": [
+      "Compare NVIDIA and AMD revenue growth from FY2024 to FY2026 and include any recent industry trends beyond their filings",
+      "Summarize Apple's supply chain risks from its FY2025 10-K and mention any recent developments if available"
+    ],
+    "ground_truth_map": {
+      "Compare NVIDIA and AMD revenue growth from FY2024 to FY2026 and include any recent industry trends beyond their filings": {
+        "ground_truth": "The document excerpts provide detailed financial results for NVIDIA from 2023 to 2026, but lack specific information on AMD's revenue growth for the same period. NVIDIA's revenue showed significant growth, with Q1 2026 revenue reaching $68.13 billion, a 73.2% increase year-over-year. In 2025, NVIDIA's quarterly revenues were $39.33 billion in Q1, $44.06 billion in Q2, $46.74 billion in Q3, and $57.01 billion in Q4. However, there is no data available for AMD's revenue growth from FY2024 to FY2026 in the provided excerpts.",
+        "key_facts": [
+          "NVIDIA Q1 2026 revenue: $68.13 billion, up 73.2% YoY.",
+          "NVIDIA Q1 2025 revenue: $39.33 billion.",
+          "NVIDIA Q2 2025 revenue: $44.06 billion.",
+          "NVIDIA Q3 2025 revenue: $46.74 billion.",
+          "NVIDIA Q4 2025 revenue: $57.01 billion."
+        ]
+      },
+      "Summarize Apple's supply chain risks from its FY2025 10-K and mention any recent developments if available": {
+        "ground_truth": "The excerpts do not provide specific details on Apple's supply chain risks from its FY2025 10-K. They mention Apple's competitive market environment and financial results but lack information on supply chain risks or recent developments related to them.",
+        "key_facts": [
+          "Apple's Q4 2025 revenue was $143.76B, up 15.7% YoY.",
+          "Apple's Q4 2025 net income was $42.10B, up 15.9% YoY.",
+          "Apple's market cap was $3983.73B in 2025.",
+          "Apple had $56.2B in manufacturing purchase obligations as of September 27, 2025."
+        ]
+      }
+    }
+  },
+  "deep_retrieval": {
+    "expected_behavior": "System should retrieve multiple relevant chunks (not shallow top-1) covering all aspects of the query.",
+    "questions": [
+      "List and explain NVIDIA's major revenue segments in FY2026 with their contributions",
+      "What are the key risk factors mentioned in Amazon's FY2025 10-K?"
+    ],
+    "ground_truth_map": {
+      "List and explain NVIDIA's major revenue segments in FY2026 with their contributions": {
+        "ground_truth": "The document excerpts do not provide specific details about NVIDIA's major revenue segments or their contributions for FY2026. The excerpts mention that NVIDIA operates through two segments, but do not specify what these segments are or their respective revenue contributions.",
+        "key_facts": [
+          "NVIDIA operates as a data center scale AI infrastructure company.",
+          "NVIDIA operates through two segments.",
+          "Total revenue for Q1 2026 was $68.13 billion.",
+          "NVIDIA's market cap is $4850.55 billion.",
+          "NVIDIA's net income for Q1 2026 was $42.96 billion."
+        ]
+      },
+      "What are the key risk factors mentioned in Amazon's FY2025 10-K?": {
+        "ground_truth": "The provided excerpts do not contain specific information about the key risk factors mentioned in Amazon's FY2025 10-K filing. The excerpts focus on financial results and business context rather than risk factors.",
+        "key_facts": []
+      }
+    }
+  },
+  "earnings_grounding": {
+    "expected_behavior": "Answer should include grounded statements from earnings transcripts when available. When transcript data on a specific topic exists in the DB, system should retrieve and cite it. When specific management quotes are absent, system must clearly state this and provide available financial metrics as context. Fabrication of quotes is an automatic fail.",
+    "questions": [
+      "What did Meta's management say about AI infrastructure investments in its FY2025 earnings calls?",
+      "What did Netflix's CFO say about subscriber growth trends in FY2025 earnings?"
+    ],
+    "ground_truth_map": {
+      "What did Meta's management say about AI infrastructure investments in its FY2025 earnings calls?": {
+        "ground_truth": "Meta's FY2025 earnings transcripts reflect the company's strong financial performance driven by AI investments. While verbatim management quotes on AI infrastructure may not be fully captured in transcript chunks, the financial data shows strong revenue growth (Q4 2025: $59.89B, up 23.8% YoY) supported by significant AI-driven advertising and infrastructure investments. System should present available financial context and acknowledge any gaps in direct management quote coverage.",
+        "key_facts": [
+          "Q4 2025 revenue: $59.89B, up 23.8% YoY",
+          "Q3 2025 net income: $2.71B, net margin: 5.3%",
+          "Q1 2025 gross margin: 82.1%",
+          "Q2 2025 operating margin: 43.0%",
+          "Market cap: $1553.29B in 2025",
+          "AI investments drove advertising revenue growth across FY2025"
+        ]
+      },
+      "What did Netflix's CFO say about subscriber growth trends in FY2025 earnings?": {
+        "ground_truth": "The provided document excerpts do not contain any statements from Netflix's CFO regarding subscriber growth trends in FY2025 earnings.",
+        "key_facts": []
+      }
+    }
+  },
+  "cross_company_reasoning": {
+    "expected_behavior": "System should compare multiple companies with structured output and balanced retrieval.",
+    "questions": [
+      "Compare Apple and Microsoft's R&D spending as a percentage of revenue in FY2024 and FY2025",
+      "Compare AWS, Azure, and Google Cloud performance across Amazon, Microsoft, and Alphabet in FY2025"
+    ],
+    "ground_truth_map": {
+      "Compare Apple and Microsoft's R&D spending as a percentage of revenue in FY2024 and FY2025": {
+        "ground_truth": "The provided excerpts do not contain specific information about Apple and Microsoft's R&D spending as a percentage of revenue for FY2024 and FY2025. Therefore, a comparison cannot be made based on the available data.",
+        "key_facts": []
+      },
+      "Compare AWS, Azure, and Google Cloud performance across Amazon, Microsoft, and Alphabet in FY2025": {
+        "ground_truth": "The excerpts do not provide specific performance metrics for AWS, Azure, and Google Cloud for FY2025. However, Microsoft reported a 15% increase in revenue driven by Azure, and Alphabet's total revenue for Q3 2025 was $102.35 billion with a gross margin of 59.6%. There is no specific mention of AWS performance in the provided excerpts.",
+        "key_facts": [
+          "Microsoft revenue increased 15% in FY2025 driven by Azure.",
+          "Alphabet's Q3 2025 revenue was $102.35 billion.",
+          "Alphabet's Q3 2025 gross margin was 59.6%.",
+          "No specific AWS performance data for FY2025 in excerpts."
+        ]
+      }
+    }
+  },
+  "context_aggregation": {
+    "expected_behavior": "System should combine multiple retrieved chunks into a coherent answer without missing key information.",
+    "questions": [
+      "Summarize both risks and growth drivers for Tesla based on its FY2025 10-K",
+      "Explain Microsoft's business segments along with growth trends in FY2025"
+    ],
+    "ground_truth_map": {
+      "Summarize both risks and growth drivers for Tesla based on its FY2025 10-K": {
+        "ground_truth": "Tesla FY2025 10-K highlights key risks including production scaling, competition, and supply chain dependencies. Growth drivers include energy generation and storage segment expansion, vehicle delivery growth, and Full Self-Driving technology development.",
+        "key_facts": [
+          "Tesla faces risks from production capacity and competition.",
+          "Energy storage segment is a key growth driver.",
+          "Full Self-Driving technology development mentioned as growth area."
+        ]
+      },
+      "Explain Microsoft's business segments along with growth trends in FY2025": {
+        "ground_truth": "In FY2025, Microsoft's business segments experienced significant growth. The total revenue for Q1 2025 was $70.07 billion, increasing to $81.27 billion by Q4 2025. The gross margin remained relatively stable, ranging from 68.0% to 69.0% throughout the year. Operating income also showed an upward trend, starting at $32.00 billion in Q1 and reaching $38.27 billion in Q4. Net income increased from $25.82 billion in Q1 to $38.46 billion in Q4, indicating strong profitability across Microsoft's business segments.",
+        "key_facts": [
+          "Q1 2025 revenue: $70.07 billion",
+          "Q4 2025 revenue: $81.27 billion",
+          "Q1 2025 operating income: $32.00 billion",
+          "Q4 2025 operating income: $38.27 billion",
+          "Q1 2025 net income: $25.82 billion",
+          "Q4 2025 net income: $38.46 billion"
+        ]
+      }
+    }
+  },
+  "adaptive_response": {
+    "expected_behavior": "Answer length and detail should scale with query complexity. For complex multi-company analysis questions, system should synthesize available data across companies covered in DB. When comprehensive cross-company data is not available for all companies in question, system should provide analysis for covered companies and acknowledge gaps.",
+    "questions": [
+      "What does NVIDIA do as of FY2026?",
+      "Provide a detailed analysis of AI investments across major tech companies from FY2024 to FY2026"
+    ],
+    "ground_truth_map": {
+      "What does NVIDIA do as of FY2026?": {
+        "ground_truth": "As of FY2026, NVIDIA operates as a full-stack, data center-scale AI infrastructure company delivering accelerated computing solutions. Its two main reportable segments are Compute and Networking and Graphics. NVIDIA designs GPUs, networking, and software for AI, HPC, robotics, and automotive markets.",
+        "key_facts": [
+          "NVIDIA operates as a data center AI infrastructure company.",
+          "NVIDIA has two main segments: Compute and Networking, and Graphics.",
+          "NVIDIA provides accelerated computing for AI and HPC."
+        ]
+      },
+      "Provide a detailed analysis of AI investments across major tech companies from FY2024 to FY2026": {
+        "ground_truth": "Major tech companies covered in the database (NVIDIA, Microsoft, Meta, Alphabet) all show significant AI investment trends through FY2024-2026. NVIDIA's data center revenue reflects AI accelerator demand. Microsoft's Azure growth is driven by AI workloads. Meta's capex reflects AI infrastructure build-out. System should synthesize available data from covered companies and note any gaps.",
+        "key_facts": [
+          "NVIDIA Q1 2026 revenue: $68.13B driven by AI accelerator demand",
+          "Microsoft revenue increased 15% in FY2025 driven by Azure AI workloads",
+          "Meta Q4 2025 revenue: $59.89B with AI-driven advertising growth",
+          "Alphabet Q3 2025 revenue: $102.35B with Google Cloud AI expansion"
+        ]
+      }
+    }
+  },
+  "web_trigger": {
+    "web_search": true,
+    "expected_behavior": "System should trigger web search for recent or out-of-database queries.",
+    "questions": [
+      "What are the latest developments in AI chip competition in 2026?",
+      "What recent news exists about Snowflake's strategy in 2026?"
+    ],
+    "ground_truth_map": {
+      "What are the latest developments in AI chip competition in 2026?": {
+        "ground_truth": "The system should use web search to provide recent information about this topic. The answer should contain developments beyond the static SEC filing database, citing recent news sources. The system must not rely solely on its internal documents.",
+        "key_facts": [
+          "WEB_SEARCH_TRIGGERED"
+        ]
+      },
+      "What recent news exists about Snowflake's strategy in 2026?": {
+        "ground_truth": "The system should use web search to provide recent information about this topic. The answer should contain developments beyond the static SEC filing database, citing recent news sources. The system must not rely solely on its internal documents.",
+        "key_facts": [
+          "WEB_SEARCH_TRIGGERED"
+        ]
+      }
+    }
+  },
+  "strict_rag_only": {
+    "expected_behavior": "System must NOT use web search when disabled and rely only on internal documents.",
+    "questions": [
+      "What were Apple's revenue segments in its FY2025 10-K?",
+      "What did Google report about its business segments in its FY2025 filings?"
+    ],
+    "ground_truth_map": {
+      "What were Apple's revenue segments in its FY2025 10-K?": {
+        "ground_truth": "Apple reports revenue on a geographic basis with five reportable segments: Americas, Europe, Greater China, Japan, and Rest of Asia Pacific. Americas is the largest segment with approximately $178B in revenue, followed by Europe (~$111B), Greater China (~$70B), Rest of Asia Pacific (~$30B), and Japan (~$24B) in FY2025.",
+        "key_facts": [
+          "Apple reports revenue on a geographic basis.",
+          "Five segments: Americas, Europe, Greater China, Japan, Rest of Asia Pacific.",
+          "Americas segment: approximately $178B revenue in FY2025.",
+          "Europe segment: approximately $111B revenue in FY2025.",
+          "Americas is the largest segment."
+        ]
+      },
+      "What did Google report about its business segments in its FY2025 filings?": {
+        "ground_truth": "The provided excerpts do not contain specific information about Google's business segments in its FY2025 filings. The excerpts primarily focus on financial results for various quarters of 2025, including revenue, gross profit, operating income, and net income, but do not detail individual business segments.",
+        "key_facts": [
+          "Q1 2025 total revenue: $90.23B",
+          "Q2 2025 total revenue: $96.43B",
+          "Q3 2025 total revenue: $102.35B",
+          "Q4 2025 total revenue: $113.83B",
+          "Q4 2025 net income up 29.8% YoY"
+        ]
+      }
+    }
+  },
+  "hallucination_control": {
+    "expected_behavior": "System should not fabricate information and must acknowledge missing data.",
+    "questions": [
+      "What are SpaceX's revenue numbers for FY2025?",
+      "What did Stripe report in its FY2025 10-K?"
+    ],
+    "ground_truth_map": {
+      "What are SpaceX's revenue numbers for FY2025?": {
+        "ground_truth": "This company is not covered in the AlphaLens database of SEC 10-K filings or earnings transcripts. The system should clearly acknowledge it cannot provide financial data for this company and should not fabricate any figures.",
+        "key_facts": [
+          "NOT_IN_DATABASE"
+        ]
+      },
+      "What did Stripe report in its FY2025 10-K?": {
+        "ground_truth": "This company is not covered in the AlphaLens database of SEC 10-K filings or earnings transcripts. The system should clearly acknowledge it cannot provide financial data for this company and should not fabricate any figures.",
+        "key_facts": [
+          "NOT_IN_DATABASE"
+        ]
+      }
+    }
+  },
+  "edge_cases": {
+    "expected_behavior": "System should handle invalid or ambiguous inputs gracefully.",
+    "questions": [
+      "asldkjaslkdj",
+      "Tell me everything you know about all companies from FY2020 to FY2030"
+    ],
+    "ground_truth_map": {
+      "asldkjaslkdj": {
+        "ground_truth": "The system should handle the input gracefully without fabricating an answer. Acceptable responses include: acknowledging the input is unclear, redirecting the user to relevant financial topics, or explaining the system scope. The system must NOT attempt to answer as if the gibberish were a valid financial question.",
+        "key_facts": [
+          "INVALID_INPUT"
+        ]
+      },
+      "Tell me everything you know about all companies from FY2020 to FY2030": {
+        "ground_truth": "The system should acknowledge the overly broad scope of this question. It may either scope its response to a subset of companies it covers or explain its coverage limitations gracefully.",
+        "key_facts": [
+          "BROAD_QUERY_HANDLED"
+        ]
+      }
+    }
+  }
+}

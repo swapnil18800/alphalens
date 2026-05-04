@@ -1,0 +1,48 @@
+# Core
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-dotenv>=1.0.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+
+# Database
+asyncpg>=0.30.0
+psycopg2-binary>=2.9.0
+
+# Auth
+PyJWT[crypto]>=2.8.0
+
+# AI / LLM
+openai>=1.0.0,<2.0.0
+cerebras-cloud-sdk>=1.0.0
+sentence-transformers>=3.4.0    # embeddings (all-MiniLM-L6-v2) + cross-encoder reranker
+
+# LangGraph + LangChain
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-openai>=0.2.0
+
+# Hybrid search
+rank-bm25>=0.2.2                # BM25 keyword search (pure Python, no extra deps)
+
+# Observability
+langsmith>=0.1.0                # LangSmith tracing (enable via LANGCHAIN_TRACING_V2=true)
+
+# Evaluation
+ragas>=0.1.0                    # RAGAS faithfulness + context_precision scoring
+datasets>=2.0.0                 # required by ragas
+
+# Data ingestion
+yfinance>=0.2.0                 # quarterly financial data (free, no API key)
+pandas>=2.0.0
+numpy>=1.26.0
+requests>=2.31.0
+
+# Web / utils
+httpx>=0.27.0
+python-multipart>=0.0.9
+aiofiles>=24.1.0
+tenacity>=9.0.0
+tiktoken>=0.8.0
+websockets>=15.0.0
+tavily-python>=0.3.0            # news search (optional — works without TAVILY_API_KEY)

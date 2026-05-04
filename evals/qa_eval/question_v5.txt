@@ -1,0 +1,160 @@
+{
+  "year_scoped": {
+    "web_search": false,
+    "expected_behavior": "System must filter retrieval to the specified year. If the user explicitly asks about FY2024, retrieved chunks should be from filing_year 2024 (or matching transcript year), NOT from FY2025/FY2026. Citations must be year-correct.",
+    "questions": [
+      "What did Meta's management say about AI infrastructure CapEx in FY2024 earnings calls specifically? Use only FY2024 transcripts, not FY2025 or FY2026 calls.",
+      "What was NVIDIA's data center revenue specifically in Q3 of FY2025? Cite the FY2025 transcript chunk only.",
+      "What did Tesla say about Full Self-Driving (FSD) progress in its FY2023 10-K filing? Do not use later 10-Ks."
+    ],
+    "ground_truth_map": {
+      "What did Meta's management say about AI infrastructure CapEx in FY2024 earnings calls specifically? Use only FY2024 transcripts, not FY2025 or FY2026 calls.": {
+        "ground_truth": "Meta's FY2024 earnings call transcripts (Q1-Q4 2024) cover AI infrastructure CapEx commentary from CEO Mark Zuckerberg and CFO Susan Li. Key themes: aggressive multi-year CapEx ramp, Llama open-source LLM strategy, AI-powered ad ranking gains, Reality Labs investment continuation. CALIBRATION NOTE: Acceptable answer cites at least one [TC-META-Q*-FY2024] (or equivalent year=2024) marker with substantive transcript content. If the answer cites Q1-2026, Q4-2025, or any FY2025/FY2026 transcript instead of FY2024 ones, this is a YEAR-MISMATCH RETRIEVAL FAILURE — score as FAIL (not PARTIAL). The whole point of this question is to test the year filter.",
+        "key_facts": [
+          "Answer must reference FY2024 (year=2024) transcripts only — Q1, Q2, Q3, or Q4 of 2024.",
+          "Should mention Zuckerberg/Susan Li commentary on infrastructure investment.",
+          "AI CapEx as long-term strategic priority is the dominant theme.",
+          "Llama open-source LLM family is mentioned in FY2024 calls.",
+          "If answer cites only FY2025/FY2026 transcripts → FAIL (year filter broken)."
+        ]
+      },
+      "What was NVIDIA's data center revenue specifically in Q3 of FY2025? Cite the FY2025 transcript chunk only.": {
+        "ground_truth": "NVIDIA Q3 FY2025 (the quarter ended late October 2024) reported Data Center revenue of approximately $30.8 billion, up 17% sequentially and approximately 112% year-over-year. CFO Colette Kress emphasized H200 ramp and CSP demand. CALIBRATION NOTE: Acceptable answer cites a Q3-FY2025 NVDA transcript ([TC-NVDA-Q3-FY2024] or equivalent — note NVDA's fiscal year ends January, so Q3 FY2025 maps to year=2024 in the DB) with the $30.8B figure. If answer cites Q1/Q2/Q4 FY2025, or cites FY2024/FY2026 chunks instead, this is a year/quarter mismatch — FAIL.",
+        "key_facts": [
+          "Q3 FY2025 Data Center revenue ~$30.8B.",
+          "Up 17% sequentially, ~112% YoY.",
+          "Hopper H200 ramp commentary.",
+          "Must cite a Q3-specific transcript, not annual 10-K total."
+        ]
+      },
+      "What did Tesla say about Full Self-Driving (FSD) progress in its FY2023 10-K filing? Do not use later 10-Ks.": {
+        "ground_truth": "Tesla's FY2023 10-K (filed in 2024, filing_year=2024) discusses FSD progress: continued neural network training improvements, FSD Beta wide-release, and remaining ADAS-level (not full L4/L5) categorization. Acceptable answer cites [SEC-TSLA-2024] (the filing year corresponding to FY2023 10-K) and discusses FSD strategy from that filing. CALIBRATION NOTE: If answer cites [SEC-TSLA-2025] or [SEC-TSLA-2026] content for FSD instead of the FY2023 filing, this indicates the year filter did not constrain to FY2023. Score: FAIL if answer relies primarily on later filings; PARTIAL if mixed; PASS if FY2023 filing content dominates.",
+        "key_facts": [
+          "FY2023 10-K = filing_year=2024 in DB (10-K filed early 2024 covers calendar 2023).",
+          "FSD characterized as advanced driver-assistance, not full autonomy.",
+          "Neural-network training scale as differentiator.",
+          "Must cite [SEC-TSLA-2024] (FY2023 10-K), not later filings."
+        ]
+      }
+    }
+  },
+  "cross_company_quant": {
+    "web_search": false,
+    "expected_behavior": "System must retrieve data for EACH company explicitly requested in the comparison and synthesize numerical comparison. Per-ticker retrieval should ensure no ticker is under-represented.",
+    "questions": [
+      "Rank AMD, Intel, and NVIDIA by FY2024 data center segment revenue. Provide exact figures for each company.",
+      "Compare AAPL, MSFT, and GOOGL operating margins for FY2024 — provide a side-by-side table with exact percentage figures from each 10-K."
+    ],
+    "ground_truth_map": {
+      "Rank AMD, Intel, and NVIDIA by FY2024 data center segment revenue. Provide exact figures for each company.": {
+        "ground_truth": "Approximate FY2024 Data Center revenue figures: NVIDIA Data Center ~$47.5B (FY2024 = year ending Jan 2024) or ~$115.2B (FY2025 = year ending Jan 2025 — represents calendar 2024); AMD Data Center segment ~$12.6B FY2024 (calendar 2024); Intel Data Center & AI (DCAI) ~$12.8B FY2024. Ranking: NVIDIA >> AMD ≈ Intel. CALIBRATION NOTE: NVIDIA's fiscal year is offset (FY2025 = calendar 2024) so the answer may cite either NVDA FY2024 (~$47.5B, calendar 2023) or NVDA FY2025 (~$115.2B, calendar 2024) — both acceptable if the year is clearly labeled. Answer MUST cite chunks from all 3 companies (NVDA, AMD, INTC) — if answer is dominated by one company with thin data on the other two, this is a per-ticker decomposition failure. Score: PASS only if all 3 companies have explicit revenue figures cited; PARTIAL if one company is missing a number; FAIL if 2+ companies missing.",
+        "key_facts": [
+          "AMD FY2024 Data Center revenue ~$12.6B (up from ~$6.5B FY2023).",
+          "Intel DCAI FY2024 revenue ~$12.8B.",
+          "NVIDIA FY2025 (calendar 2024) Data Center revenue ~$115.2B; or NVDA FY2024 (calendar 2023) Data Center ~$47.5B.",
+          "Ranking: NVIDIA >> AMD ≈ Intel by an order of magnitude.",
+          "All 3 companies must have data cited — per-ticker retrieval critical."
+        ]
+      },
+      "Compare AAPL, MSFT, and GOOGL operating margins for FY2024 — provide a side-by-side table with exact percentage figures from each 10-K.": {
+        "ground_truth": "FY2024 operating margins (approx): AAPL ~31% ($123.2B operating income on $391B revenue), MSFT ~45% ($109.4B on $245.1B revenue, FY2024 ending June 2024), GOOGL ~32% ($112.4B on $350B revenue). Acceptable answer provides a markdown table with all 3 companies and their FY2024 operating margin percentages. CALIBRATION NOTE: If answer omits one company's margin OR fabricates figures, score accordingly. PASS = all 3 cited with reasonable figures; PARTIAL = 2/3; FAIL = 0-1/3 cited. Per-ticker retrieval is being tested.",
+        "key_facts": [
+          "AAPL FY2024 operating margin ~31%.",
+          "MSFT FY2024 operating margin ~45%.",
+          "GOOGL FY2024 operating margin ~32%.",
+          "MSFT highest, AAPL/GOOGL similar.",
+          "Markdown table format expected."
+        ]
+      }
+    }
+  },
+  "multi_year_trend": {
+    "web_search": false,
+    "expected_behavior": "System must retrieve chunks from MULTIPLE years and synthesize a coherent trajectory. Top-k cap should accommodate multiple year/source chunks.",
+    "questions": [
+      "Trace Meta Reality Labs operating loss from FY2022 to FY2024 with figures for each year.",
+      "Show Microsoft Intelligent Cloud segment revenue trajectory from FY2022 through FY2025 — figures for each year and YoY growth percentages."
+    ],
+    "ground_truth_map": {
+      "Trace Meta Reality Labs operating loss from FY2022 to FY2024 with figures for each year.": {
+        "ground_truth": "Meta Reality Labs operating losses widened each year: FY2022 ~$13.7B operating loss; FY2023 ~$16.1B operating loss; FY2024 ~$17.7B operating loss. Reality Labs revenue stayed flat ~$1.9-2.2B/year. Acceptable answer provides a year-by-year breakdown. CALIBRATION NOTE: Required to cite explicitly distinct chunks from FY2022, FY2023, AND FY2024 (e.g., [SEC-META-2023] for FY2022 data, [SEC-META-2024] for FY2023 data, [SEC-META-2025] for FY2024 data) — note filing year offset. PASS if all 3 years have figures; PARTIAL if 2/3; FAIL if only 1 year cited.",
+        "key_facts": [
+          "Meta RL FY2022 operating loss ~$13.7B.",
+          "Meta RL FY2023 operating loss ~$16.1B.",
+          "Meta RL FY2024 operating loss ~$17.7B.",
+          "Loss widened each year.",
+          "All 3 years must be explicitly cited with figures."
+        ]
+      },
+      "Show Microsoft Intelligent Cloud segment revenue trajectory from FY2022 through FY2025 — figures for each year and YoY growth percentages.": {
+        "ground_truth": "MSFT Intelligent Cloud segment: FY2022 ~$75B, FY2023 ~$87.9B (+17% YoY), FY2024 ~$105.4B (+20% YoY), FY2025 ~$120B+ (~14-17% YoY). MSFT fiscal year ends June 30; FY2024 covers Jul 2023 – Jun 2024. Acceptable answer provides figures for ≥3 of the 4 years requested with YoY growth. CALIBRATION NOTE: Filing year offset: MSFT FY2024 10-K is filed_year=2024, FY2025 10-K is filing_year=2025. Answer MUST distinguish between filing_year and fiscal_year correctly. PASS if 4/4 years cited; PARTIAL if 3/4 or filing-year-confusion present; FAIL if ≤2 years cited.",
+        "key_facts": [
+          "MSFT IC FY2022 ~$75B.",
+          "MSFT IC FY2023 ~$87.9B.",
+          "MSFT IC FY2024 ~$105.4B.",
+          "MSFT IC FY2025 ~$120B+.",
+          "Top_k must accommodate 4 years × 1 ticker; multi-year chunks must be retrieved."
+        ]
+      }
+    }
+  },
+  "strict_rag_hard": {
+    "web_search": false,
+    "expected_behavior": "System must answer ONLY from retrieved chunks. If a figure is not in the retrieved context, system MUST say 'not found in context' rather than recall the number from training data. The post-gen validator should append a disclaimer if numeric figures are unverified.",
+    "questions": [
+      "Per Amazon's FY2024 10-K only, what were AWS operating income and AWS operating margin? Do not use general knowledge — only cite figures that appear verbatim in the retrieved 10-K context.",
+      "Per Alphabet's FY2024 10-K only, what is the Other Bets segment revenue and operating loss? Cite only figures that appear in the retrieved chunks."
+    ],
+    "ground_truth_map": {
+      "Per Amazon's FY2024 10-K only, what were AWS operating income and AWS operating margin? Do not use general knowledge — only cite figures that appear verbatim in the retrieved 10-K context.": {
+        "ground_truth": "True FY2024 figures: AWS operating income ~$39.8B on AWS revenue ~$107.6B = ~37% operating margin. CALIBRATION NOTE: This question explicitly tests whether the LLM uses parametric knowledge or sticks to retrieved context. Three valid outcomes: (1) PASS — answer cites the figures with [SEC-AMZN-2025] (filing_year=2025 contains FY2024 data) AND those figures appear in the actual retrieved chunks; (2) PARTIAL — answer says 'not found in context' or 'figures unavailable in retrieved chunks' (honest refusal); (3) FAIL — answer cites figures that are NOT in the retrieved chunks (parametric hallucination). The strict-rag validator should flag the hallucination case with a disclaimer; if disclaimer is appended → PARTIAL not FAIL. Honest refusal is acceptable here.",
+        "key_facts": [
+          "AWS FY2024 operating income ~$39.8B.",
+          "AWS FY2024 operating margin ~37%.",
+          "Honest 'not in context' refusal is acceptable (PARTIAL).",
+          "Hallucinated figures with no chunk grounding = FAIL (or PARTIAL if validator disclaimer appears).",
+          "Tests strict-rag-only mode discipline."
+        ]
+      },
+      "Per Alphabet's FY2024 10-K only, what is the Other Bets segment revenue and operating loss? Cite only figures that appear in the retrieved chunks.": {
+        "ground_truth": "Alphabet FY2024 Other Bets: revenue ~$1.6B, operating loss ~$4.4B. Alphabet has 3 segments: Google Services, Google Cloud, Other Bets. Other Bets includes Waymo, Verily, etc. CALIBRATION NOTE: Same logic as AMZN — PASS if cited from retrieved chunks; PARTIAL if 'not found in context' refusal OR if validator disclaimer appears; FAIL if figures hallucinated without disclaimer.",
+        "key_facts": [
+          "Alphabet FY2024 Other Bets revenue ~$1.6B.",
+          "Alphabet FY2024 Other Bets operating loss ~$4.4B.",
+          "Honest refusal acceptable (PARTIAL).",
+          "Validator-flagged hallucination = PARTIAL not FAIL.",
+          "Tests parametric-knowledge bleed-through control."
+        ]
+      }
+    }
+  },
+  "hybrid_dual": {
+    "web_search": true,
+    "expected_behavior": "System must integrate BOTH SEC filing data AND recent web/news content. Answer must cite at least one [SEC-...] or [TC-...] marker AND at least one [NEWS] marker (enforced via hybrid_block prompt rule).",
+    "questions": [
+      "What did NVIDIA's most recent 10-K say about competitive risks in AI accelerators, AND what 2026 news exists about its export-control or geopolitical situation?",
+      "Combine Microsoft's FY2024 10-K disclosures on AI strategy with current 2026 news about Copilot enterprise adoption."
+    ],
+    "ground_truth_map": {
+      "What did NVIDIA's most recent 10-K say about competitive risks in AI accelerators, AND what 2026 news exists about its export-control or geopolitical situation?": {
+        "ground_truth": "NVIDIA's most recent 10-K (FY2025, filing_year=2025) discusses competitive risks: AMD MI300/MI400, custom hyperscaler silicon (Google TPU, AWS Trainium, MS Maia, Meta MTIA), export control restrictions on China sales (H20 variant), and customer concentration risk. Web search should retrieve 2026 news on US export-control updates, Chinese chip rivals (Huawei Ascend), and any TSMC/CoWoS supply news. CALIBRATION NOTE: Hybrid mode requires BOTH source types cited. PASS = answer has ≥1 [SEC-NVDA-...] AND ≥1 [NEWS-...] marker; PARTIAL = only one source type used; FAIL = source types missing or hallucinated.",
+        "key_facts": [
+          "NVDA 10-K cites AMD, Intel, custom silicon as competitive risks.",
+          "Export control on China is a key risk.",
+          "Web should provide 2026 export-control / Huawei news.",
+          "Answer MUST cite both [SEC-NVDA-...] and [NEWS-...] markers.",
+          "Single-source answer = PARTIAL."
+        ]
+      },
+      "Combine Microsoft's FY2024 10-K disclosures on AI strategy with current 2026 news about Copilot enterprise adoption.": {
+        "ground_truth": "Microsoft's FY2024 10-K (filing_year=2024) describes AI strategy: Azure OpenAI Service, M365 Copilot, GitHub Copilot, Dynamics 365 Copilot. Intelligent Cloud segment leader. Web search should retrieve 2026 Copilot enterprise adoption metrics, Microsoft AI revenue commentary, or competitive positioning vs. Google Workspace. CALIBRATION NOTE: Same hybrid-citation rule — PASS requires both source types. The hybrid_block in RESPONSE_PROMPT enforces this; if LLM only cites one source it's a PARTIAL.",
+        "key_facts": [
+          "MSFT 10-K mentions Azure OpenAI, M365 Copilot, GitHub Copilot.",
+          "Web should provide 2026 Copilot adoption news.",
+          "Answer MUST cite both [SEC-MSFT-...] and [NEWS-...] markers.",
+          "Hybrid_block prompt enforcement is being tested."
+        ]
+      }
+    }
+  }
+}

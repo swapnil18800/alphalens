@@ -1,0 +1,280 @@
+{
+  "hybrid_routing": {
+    "web_search": true,
+    "expected_behavior": "System should combine RAG (10-K + earnings) with web search to provide current market context and recent developments.",
+    "questions": [
+      "Compare NVIDIA and AMD's competitive positioning in AI accelerators from FY2024 to FY2026, including recent market announcements",
+      "What's Qualcomm's latest strategy in 5G and AI chips? Include both 10-K details and recent 2026 industry developments"
+    ],
+    "ground_truth_map": {
+      "Compare NVIDIA and AMD's competitive positioning in AI accelerators from FY2024 to FY2026, including recent market announcements": {
+        "ground_truth": "NVIDIA holds dominant market leadership in AI accelerators with approximately 80% market share by revenue as of FY2025-FY2026. NVIDIA's quarterly revenue accelerated from $44.06B (Q2 FY2025) to $57.01B (Q4 FY2025) and $68.13B (Q1 FY2026), representing 73.2% YoY growth. AMD operates at smaller scale with Q3 2025 revenue of $9.25B and market cap of $579.23B vs NVIDIA's $4839B. Web search results for 2026 competitive announcements and market share data supplement the SEC filing data.",
+        "key_facts": [
+          "NVIDIA Q1 2026 revenue: $68.13B, up 73.2% YoY.",
+          "NVIDIA Q4 2025 revenue: $57.01B.",
+          "NVIDIA Q3 2025 revenue: $46.74B.",
+          "AMD Q3 2025 revenue: $9.25B.",
+          "NVIDIA market cap: $4839B in 2025; AMD market cap: $579.23B.",
+          "Web search should provide current market share and 2026 competitive announcements."
+        ]
+      },
+      "What's Qualcomm's latest strategy in 5G and AI chips? Include both 10-K details and recent 2026 industry developments": {
+        "ground_truth": "Qualcomm's latest strategy in 5G and AI chips involves advancing 5G standards and integrating AI capabilities into their Snapdragon platforms. The company is working on Release 19, which builds on 5G Advanced standards to introduce new advancements such as a standardized wireless AI framework and ultra-low power receivers. Qualcomm's AI Engine, part of their Snapdragon products, is designed to handle complex AI use cases efficiently. Additionally, Qualcomm is expanding its technology across various products, including PCs, smartphones, automotive, and IoT devices.",
+        "key_facts": [
+          "Qualcomm is developing Release 19 for 5G advancements.",
+          "Release 19 includes a standardized wireless AI framework.",
+          "Qualcomm's AI Engine is part of Snapdragon platforms.",
+          "Qualcomm's technology spans PCs, smartphones, automotive, and IoT.",
+          "Release 19 introduces ultra-low power receivers."
+        ]
+      }
+    }
+  },
+  "deep_retrieval": {
+    "web_search": false,
+    "expected_behavior": "System should retrieve multiple relevant chunks. When product-segment revenue breakdown is unavailable in retrieved chunks, system must acknowledge this gap explicitly and provide available quarterly total revenues instead. No fabrication of segment data.",
+    "questions": [
+      "Explain Lam Research's major product segments and their revenue contributions in FY2025",
+      "What are the key risk factors mentioned in Applied Materials' FY2025 10-K?"
+    ],
+    "ground_truth_map": {
+      "Explain Lam Research's major product segments and their revenue contributions in FY2025": {
+        "ground_truth": "Lam Research operates in one reportable business segment (semiconductor processing equipment). Revenue is disaggregated into two categories per the 10-K: Systems Revenue (~$11.49B in FY2025) and Customer-Support Related Revenue. The company serves memory, foundry, and logic/IDM markets. Granular product-line percentage breakdowns are not separately reported.",
+        "key_facts": [
+          "Lam Research operates in one reportable business segment.",
+          "Revenue categories: Systems Revenue and Customer-Support Related Revenue.",
+          "Systems Revenue approximately $11.49B in FY2025.",
+          "Lam Research serves memory, foundry, and logic/IDM markets.",
+          "Lam Research designs and services semiconductor processing equipment."
+        ]
+      },
+      "What are the key risk factors mentioned in Applied Materials' FY2025 10-K?": {
+        "ground_truth": "The key risk factors mentioned in Applied Materials' FY2025 10-K include risks associated with environmental, health, and safety regulations. These regulations pertain to the design, manufacture, sale, shipping, import, export, and use of products, as well as the handling and disposal of hazardous materials. Non-compliance with these regulations could lead to significant legal liabilities, penalties, and restrictions on business operations.",
+        "key_facts": [
+          "Environmental, health, and safety regulations are key risk factors.",
+          "Regulations cover product design, manufacture, and disposal.",
+          "Non-compliance could result in legal liabilities and penalties.",
+          "Risks include handling and disposal of hazardous materials."
+        ]
+      }
+    }
+  },
+  "earnings_grounding": {
+    "web_search": false,
+    "expected_behavior": "Answer should include grounded statements from earnings transcripts when available. When specific management quotes on a topic are absent from retrieved transcripts, system must clearly state this and provide available financial metrics (quarterly revenues, margins) as context. Fabrication of quotes is an automatic fail.",
+    "questions": [
+      "What did Salesforce's management say about AI and CRM integration in FY2025 earnings calls?",
+      "What guidance did Palantir provide on government and commercial AI revenue growth in FY2025 earnings?"
+    ],
+    "ground_truth_map": {
+      "What did Salesforce's management say about AI and CRM integration in FY2025 earnings calls?": {
+        "ground_truth": "Specific FY2025 earnings call transcripts are not available for Salesforce in the database. However, the FY2025 10-K documents the company's AI and CRM strategy: Agentforce (agentic AI layer for deploying autonomous AI agents across all CRM functions), Customer 360 AI-powered platform uniting sales/service/marketing/commerce, and Industries AI capabilities for industry-specific agents. Answers citing these 10-K product disclosures are acceptable context when transcripts are unavailable.",
+        "key_facts": [
+          "Salesforce transcript data not available; 10-K product strategy is acceptable context.",
+          "Agentforce: agentic AI layer for autonomous AI agents across CRM functions.",
+          "Customer 360: AI-powered platform uniting sales, service, marketing, and commerce.",
+          "Salesforce Q1 2026 revenue: $11.20B.",
+          "Salesforce market cap: $149.32B in 2025."
+        ]
+      },
+      "What guidance did Palantir provide on government and commercial AI revenue growth in FY2025 earnings?": {
+        "ground_truth": "The provided document excerpts do not contain specific guidance on Palantir's government and commercial AI revenue growth for FY2025. The excerpts focus on financial results and general business context but lack detailed future revenue projections or guidance.",
+        "key_facts": [
+          "Q4 2025 revenue: $1.41B, up 70% YoY",
+          "Q3 2025 revenue: $1.18B",
+          "Q2 2025 revenue: $1.00B",
+          "Q1 2025 revenue: $0.88B",
+          "Palantir's market cap: $345.62B"
+        ]
+      }
+    }
+  },
+  "cross_company_reasoning": {
+    "web_search": false,
+    "expected_behavior": "System should compare multiple companies with structured output. When specific metrics (e.g. R&D% of revenue, specific margins) are unavailable in retrieved chunks, system must acknowledge this limitation explicitly and provide available comparative data (revenue, margins from transcripts). A structured acknowledgment of data gaps with supporting available figures is acceptable.",
+    "questions": [
+      "Compare Intel and AMD's R&D spending as a percentage of revenue in FY2024 and FY2025",
+      "How do Applied Materials and Lam Research differ in operating margins and profitability trends (FY2024-2025)?"
+    ],
+    "ground_truth_map": {
+      "Compare Intel and AMD's R&D spending as a percentage of revenue in FY2024 and FY2025": {
+        "ground_truth": "The provided excerpts do not contain specific information on Intel and AMD's R&D spending as a percentage of revenue for FY2024 and FY2025. The excerpts only provide revenue and other financial metrics for various quarters in 2025 for both companies, but do not detail R&D expenditures or their percentages relative to revenue.",
+        "key_facts": [
+          "AMD Q4 2025 revenue: $10.27B",
+          "Intel Q4 2025 revenue: $13.67B",
+          "AMD Q4 2024 revenue: $7.66B",
+          "Intel Q3 2025 revenue: $13.65B",
+          "R&D percentage data unavailable in retrieved excerpts; revenue comparison provided instead"
+        ]
+      },
+      "How do Applied Materials and Lam Research differ in operating margins and profitability trends (FY2024-2025)?": {
+        "ground_truth": "Applied Materials Q4 FY2025 operating margin was approximately 27.8%, with Semiconductor Systems segment margin ~35.5% and Applied Global Services ~28.1%. Lam Research shows a clear upward trajectory: Q1 2025 operating margin 33.1%, Q3 2025 34.4%, Q4 FY2025 ~33.9%, Q1 2026 35.0%. Both companies show improving margins, with Lam Research consistently higher and trending upward faster.",
+        "key_facts": [
+          "Applied Materials Q4 FY2025 operating margin: ~27.8%.",
+          "Applied Materials Semiconductor Systems segment margin FY2025: ~35.5%.",
+          "Lam Research Q1 2025 operating margin: 33.1%.",
+          "Lam Research Q3 2025 operating margin: 34.4%.",
+          "Lam Research Q1 2026 operating margin: 35.0%."
+        ]
+      }
+    }
+  },
+  "context_aggregation": {
+    "web_search": false,
+    "expected_behavior": "System should synthesize multiple retrieved chunks into coherent multi-faceted analysis. Answers should cover at least 2 distinct themes per question with specific quantitative anchors from filings. For Cisco: cover both networking trends and cybersecurity strategy (Splunk, XDR). For PANW: identify at least 2 growth drivers with numbers (e.g. 14.9% YoY revenue growth, platform consolidation ARR).",
+    "questions": [
+      "Summarize Cisco's digital transformation strategy, cloud investment, and cybersecurity focus from FY2024-2025 10-K",
+      "Explain Palo Alto Networks' threat intelligence platform growth drivers and enterprise security spend trends"
+    ],
+    "ground_truth_map": {
+      "Summarize Cisco's digital transformation strategy, cloud investment, and cybersecurity focus from FY2024-2025 10-K": {
+        "ground_truth": "Cisco's FY2024-2025 10-K highlights: (1) Cybersecurity strengthened via Splunk acquisition (Q3 FY2024), adding security analytics and observability; Security revenue grew 32% in FY2024 to $5.1B. (2) AI-driven threat detection and XDR (Extended Detection and Response) capabilities integrated with Splunk for end-to-end security architecture. (3) Networking segment revenue $29.2B in FY2024, down from $34.6B in FY2023 (post-pandemic normalization). (4) Significant investments in cloud-based security and AI-driven threat detection per FY2025 10-K.",
+        "key_facts": [
+          "Splunk acquisition completed Q3 FY2024, boosting security analytics.",
+          "Cisco Security revenue FY2024: $5.1B, up 32% YoY.",
+          "Cisco Networking revenue FY2024: $29.2B (down from $34.6B in FY2023).",
+          "XDR capabilities integrated with Splunk for end-to-end security.",
+          "Cisco Q4 2025 revenue: $14.88B; Q1 2026 revenue up 9.7% YoY."
+        ]
+      },
+      "Explain Palo Alto Networks' threat intelligence platform growth drivers and enterprise security spend trends": {
+        "ground_truth": "The growth drivers for Palo Alto Networks' threat intelligence platform include extending technology leadership, expanding the customer base, and increasing deployment of their portfolio and support offerings. The company emphasizes customer satisfaction as a critical factor for success. In terms of enterprise security spend trends, Palo Alto Networks reported a 14.9% year-over-year increase in total revenue for Q1 2026, indicating a growing investment in cybersecurity solutions. The company's gross margin remained stable at around 73.6%, reflecting consistent profitability in the sector.",
+        "key_facts": [
+          "Palo Alto Networks' Q1 2026 revenue increased by 14.9% YoY.",
+          "Palo Alto Networks' gross margin for Q1 2026 was 73.6%.",
+          "Key growth drivers include technology leadership and customer base expansion.",
+          "Customer satisfaction is crucial for Palo Alto Networks' success.",
+          "Palo Alto Networks' market cap was $148.33B in Q1 2026."
+        ]
+      }
+    }
+  },
+  "adaptive_response": {
+    "web_search": false,
+    "expected_behavior": "Answer length and complexity should scale with query scope—simple queries get concise answers, complex queries get detailed analysis.",
+    "questions": [
+      "What does Broadcom do?",
+      "Provide a detailed analysis of memory chip market trends, pricing dynamics, and Micron Technology's competitive positioning vs SK Hynix (FY2024-2025)"
+    ],
+    "ground_truth_map": {
+      "What does Broadcom do?": {
+        "ground_truth": "Broadcom Inc. is a technology company that designs, develops, and supplies semiconductor devices and infrastructure software solutions internationally. The company operates in the semiconductor industry and provides products such as fibre channel storage area networking products and related software. Broadcom also completed the acquisition of VMware, Inc. in 2023, expanding its offerings in the software domain.",
+        "key_facts": [
+          "Broadcom designs and supplies semiconductor devices.",
+          "Broadcom provides infrastructure software solutions.",
+          "Broadcom operates in the semiconductor industry.",
+          "Broadcom acquired VMware in 2023.",
+          "Broadcom offers fibre channel storage area networking products."
+        ]
+      },
+      "Provide a detailed analysis of memory chip market trends, pricing dynamics, and Micron Technology's competitive positioning vs SK Hynix (FY2024-2025)": {
+        "ground_truth": "Micron Technology's financial performance in FY2025 showed significant growth, with revenue increasing each quarter, culminating in $13.64 billion in Q4. The company achieved a gross margin of 56.0% and a net margin of 38.4% in Q4 2025. Micron faces intense competition in the semiconductor memory and storage markets, requiring continuous innovation and cost reduction to maintain its competitive position. The company has been successful in introducing new generations of products with improved performance, but it must manage declining average selling prices and inflationary pressures. The market dynamics and competitive pressures from companies like SK Hynix necessitate ongoing advancements in technology and manufacturing efficiency.",
+        "key_facts": [
+          "Micron Q4 2025 revenue: $13.64B",
+          "Micron Q4 2025 gross margin: 56.0%",
+          "Micron Q4 2025 net margin: 38.4%",
+          "Micron faces intense competition in memory markets",
+          "Micron must innovate to counter declining selling prices"
+        ]
+      }
+    }
+  },
+  "web_trigger": {
+    "web_search": true,
+    "expected_behavior": "System should recognize queries requiring recent news and use web search to supplement 10-K data with 2026 developments.",
+    "questions": [
+      "How is Adobe integrating generative AI into its creative products? Include both 10-K strategy and latest 2026 product announcements",
+      "What's the latest on ServiceNow's AI platform roadmap and cloud infrastructure investments? Include recent news beyond FY2025 10-K"
+    ],
+    "ground_truth_map": {
+      "How is Adobe integrating generative AI into its creative products? Include both 10-K strategy and latest 2026 product announcements": {
+        "ground_truth": "The system should use web search to provide recent information about this topic. The answer should contain developments beyond the static SEC filing database, citing recent news sources. The system must not rely solely on its internal documents.",
+        "key_facts": [
+          "WEB_SEARCH_TRIGGERED"
+        ]
+      },
+      "What's the latest on ServiceNow's AI platform roadmap and cloud infrastructure investments? Include recent news beyond FY2025 10-K": {
+        "ground_truth": "The system should use web search to provide recent information about this topic. The answer should contain developments beyond the static SEC filing database, citing recent news sources. The system must not rely solely on its internal documents.",
+        "key_facts": [
+          "WEB_SEARCH_TRIGGERED"
+        ]
+      }
+    }
+  },
+  "strict_rag_only": {
+    "web_search": false,
+    "expected_behavior": "System should retrieve and synthesize answer ONLY from internal DB chunks, without web search even if results are incomplete.",
+    "questions": [
+      "List Tesla's revenue by geographic segment (Americas, Europe, China, Other) for FY2024 and FY2025 from 10-K filing",
+      "What are Uber Technologies' revenue segments and their percentage contributions in FY2025?"
+    ],
+    "ground_truth_map": {
+      "List Tesla's revenue by geographic segment (Americas, Europe, China, Other) for FY2024 and FY2025 from 10-K filing": {
+        "ground_truth": "The provided document excerpts do not contain specific information about Tesla's revenue by geographic segment for FY2024 and FY2025. The excerpts include general financial results for various quarters in 2025 and 2026 but do not break down revenue by geographic regions such as Americas, Europe, China, or Other.",
+        "key_facts": [
+          "Total revenue for Q1 2025: $19.34B",
+          "Total revenue for Q2 2025: $22.50B",
+          "Total revenue for Q3 2025: $28.09B",
+          "Total revenue for Q4 2025: $24.90B",
+          "Total revenue for Q1 2026: $22.39B"
+        ]
+      },
+      "What are Uber Technologies' revenue segments and their percentage contributions in FY2025?": {
+        "ground_truth": "The provided document excerpts do not contain specific information about Uber Technologies' revenue segments and their percentage contributions for FY2025. The excerpts primarily focus on quarterly financial results, including total revenue, gross profit, and net income, without detailing the breakdown of revenue by segment.",
+        "key_facts": [
+          "Uber's total revenue for Q4 2025 was $14.37 billion.",
+          "Uber's gross profit for Q4 2025 was $5.68 billion.",
+          "Uber's net income for Q4 2025 was $0.30 billion.",
+          "Uber's total revenue for Q2 2025 was $12.65 billion.",
+          "Uber's total revenue for Q3 2025 was $13.47 billion."
+        ]
+      }
+    }
+  },
+  "hallucination_control": {
+    "web_search": false,
+    "expected_behavior": "System should gracefully refuse out-of-scope queries without fabricating data or attempting irrelevant answers.",
+    "questions": [
+      "What is ARM Holdings' FY2025 operating income and net profit margins from their 10-K filing?",
+      "Should I buy or sell Nvidia stock based on its FY2026 financials? Provide investment recommendation"
+    ],
+    "ground_truth_map": {
+      "What is ARM Holdings' FY2025 operating income and net profit margins from their 10-K filing?": {
+        "ground_truth": "No specific company data could be identified for this question.",
+        "key_facts": []
+      },
+      "Should I buy or sell Nvidia stock based on its FY2026 financials? Provide investment recommendation": {
+        "ground_truth": "Based on Nvidia's financial performance in FY2026, the company shows strong growth and profitability. In Q1 2026, Nvidia reported a significant increase in revenue to $68.13 billion, up 73.2% year-over-year, and a net income of $42.96 billion, up 94.5% year-over-year. The gross margin improved to 75.0%, and the operating margin was 65.0%. The forward P/E ratio is 17.8x, suggesting potential for future growth. These financial indicators suggest a strong performance, which may support a buy recommendation for Nvidia stock.",
+        "key_facts": [
+          "Q1 2026 revenue: $68.13 billion, up 73.2% YoY",
+          "Q1 2026 net income: $42.96 billion, up 94.5% YoY",
+          "Q1 2026 gross margin: 75.0%",
+          "Q1 2026 operating margin: 65.0%",
+          "Forward P/E ratio: 17.8x"
+        ]
+      }
+    }
+  },
+  "edge_cases": {
+    "web_search": false,
+    "expected_behavior": "System should handle malformed queries and overly broad scopes with appropriate error messaging or graceful degradation.",
+    "questions": [
+      "!!@@##$$%% revenue AAPL chips manufacturing 2025",
+      "Tell me everything about the entire technology industry and all companies in it"
+    ],
+    "ground_truth_map": {
+      "!!@@##$$%% revenue AAPL chips manufacturing 2025": {
+        "ground_truth": "The system should acknowledge the overly broad scope of this question. It may either scope its response to a subset of companies it covers or explain its coverage limitations gracefully.",
+        "key_facts": [
+          "BROAD_QUERY_HANDLED"
+        ]
+      },
+      "Tell me everything about the entire technology industry and all companies in it": {
+        "ground_truth": "The system should acknowledge the overly broad scope of this question. It may either scope its response to a subset of companies it covers or explain its coverage limitations gracefully.",
+        "key_facts": [
+          "BROAD_QUERY_HANDLED"
+        ]
+      }
+    }
+  }
+}
