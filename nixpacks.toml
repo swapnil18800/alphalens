@@ -4,7 +4,7 @@
 #   - Node.js: cd frontend && npm ci && npm run build (via railway.toml buildCommand)
 
 [phases.setup]
-nixPkgs = ["python312", "nodejs_20", "nodePackages.npm"]
+nixPkgs = ["python312Full", "nodejs_20", "nodePackages.npm"]
 
 [phases.install]
 cmds = ["pip install -r requirements.txt"]
