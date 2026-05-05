@@ -16,10 +16,11 @@ interface Props {
   activeSessionId?: string | null
   refreshTrigger?: number
   onWidthChange?: (w: number) => void
+  anonId?: string   // passed only for unauthenticated users
 }
 
 export default function Sidebar({
-  isCollapsed, onToggle, onNewChat, onSelectSession, activeSessionId, refreshTrigger, onWidthChange,
+  isCollapsed, onToggle, onNewChat, onSelectSession, activeSessionId, refreshTrigger, onWidthChange, anonId,
 }: Props) {
   const navigate = useNavigate()
   const [sessions, setSessions] = useState<Session[]>([])
@@ -29,18 +30,20 @@ export default function Sidebar({
   const startW   = useRef(DEFAULT_W)
 
   const loadSessions = useCallback(() => {
-    listSessions()
+    listSessions(null, anonId)
       .then(r => setSessions(r.sessions))
       .catch(() => {})
-  }, [])
+  }, [anonId])
 
   const deleteSession = useCallback(async (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
     try {
-      await fetch(`/sessions/${id}`, { method: 'DELETE' })
+      const headers: Record<string, string> = {}
+      if (anonId) headers['X-Anon-Id'] = anonId
+      await fetch(`/sessions/${id}`, { method: 'DELETE', headers })
       setSessions(prev => prev.filter(s => s.id !== id))
     } catch {}
-  }, [])
+  }, [anonId])
 
   useEffect(() => { loadSessions() }, [loadSessions])
   useEffect(() => {

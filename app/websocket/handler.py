@@ -28,7 +28,8 @@ from app.utils.database import get_pool
 
 logger = logging.getLogger(__name__)
 
-MAX_SESSIONS = 10       # base per-user limit; anonymous users share this pool
+MAX_SESSIONS = 10        # per-user (authenticated) or per-anon_id session cap
+MAX_ANON_SESSIONS = 500  # global DB cap across all anonymous identifiers
 
 
 async def _load_history(session_id: str, limit: int = 10) -> list:
@@ -70,28 +71,32 @@ async def _update_session_title(pool, session_id: str, question: str):
         logger.debug(f"[ws] title update failed: {e}")
 
 
-async def _enforce_session_limit(pool, db_user_id):
-    """Delete oldest sessions beyond MAX_SESSIONS for this user."""
+async def _enforce_session_limit(pool, db_user_id: str | None):
+    """Enforce per-user session cap and global anonymous cap."""
     try:
         if db_user_id is None:
-            count = await pool.fetchval("SELECT COUNT(*) FROM sessions WHERE user_id IS NULL")
-            if count >= MAX_SESSIONS:
+            return  # legacy NULL bucket — no longer used
+        count = await pool.fetchval("SELECT COUNT(*) FROM sessions WHERE user_id = $1", db_user_id)
+        if count >= MAX_SESSIONS:
+            await pool.execute(
+                "DELETE FROM sessions WHERE id IN ("
+                "  SELECT id FROM sessions WHERE user_id = $1"
+                "  ORDER BY updated_at ASC LIMIT $2"
+                ")",
+                db_user_id, count - MAX_SESSIONS + 1,
+            )
+        # Global cap on anon sessions to prevent DB bloat
+        if db_user_id.startswith("anon_"):
+            total = await pool.fetchval(
+                "SELECT COUNT(*) FROM sessions WHERE user_id LIKE 'anon_%'"
+            )
+            if total > MAX_ANON_SESSIONS:
                 await pool.execute(
                     "DELETE FROM sessions WHERE id IN ("
-                    "  SELECT id FROM sessions WHERE user_id IS NULL"
+                    "  SELECT id FROM sessions WHERE user_id LIKE 'anon_%'"
                     "  ORDER BY updated_at ASC LIMIT $1"
                     ")",
-                    count - MAX_SESSIONS + 1,
-                )
-        else:
-            count = await pool.fetchval("SELECT COUNT(*) FROM sessions WHERE user_id = $1", db_user_id)
-            if count >= MAX_SESSIONS:
-                await pool.execute(
-                    "DELETE FROM sessions WHERE id IN ("
-                    "  SELECT id FROM sessions WHERE user_id = $1"
-                    "  ORDER BY updated_at ASC LIMIT $2"
-                    ")",
-                    db_user_id, count - MAX_SESSIONS + 1,
+                    total - MAX_ANON_SESSIONS,
                 )
     except Exception as e:
         logger.debug(f"[ws] session limit enforce failed: {e}")

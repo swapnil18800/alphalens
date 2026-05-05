@@ -1,20 +1,22 @@
 import { API_BASE } from './config'
 
-async function get<T>(path: string, token?: string | null): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
+function buildHeaders(token?: string | null, anonId?: string | null): Record<string, string> {
+  const h: Record<string, string> = {}
+  if (token)  h['Authorization'] = `Bearer ${token}`
+  if (anonId) h['X-Anon-Id'] = anonId
+  return h
+}
+
+async function get<T>(path: string, token?: string | null, anonId?: string | null): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, { headers: buildHeaders(token, anonId) })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
   return res.json()
 }
 
-async function post<T>(path: string, body: unknown, token?: string | null): Promise<T> {
+async function post<T>(path: string, body: unknown, token?: string | null, anonId?: string | null): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json', ...buildHeaders(token, anonId) },
     body: JSON.stringify(body),
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
@@ -102,11 +104,11 @@ export type WsEvent = WsAck | WsStatus | WsToken | WsAnswer | WsError | WsPong |
 
 // ── API calls ─────────────────────────────────────────────────────────────
 
-export const listSessions  = (token?: string | null) =>
-  get<{ sessions: Session[] }>('/sessions', token)
+export const listSessions  = (token?: string | null, anonId?: string | null) =>
+  get<{ sessions: Session[] }>('/sessions', token, anonId)
 
-export const createSession = (title: string, token?: string | null) =>
-  post<{ id: string; title: string }>('/sessions', { title }, token)
+export const createSession = (title: string, token?: string | null, anonId?: string | null) =>
+  post<{ id: string; title: string }>('/sessions', { title }, token, anonId)
 
 export const getHealth = () =>
   get<{ status: string; db: boolean }>('/health')

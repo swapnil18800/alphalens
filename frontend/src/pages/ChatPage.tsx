@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { motion } from 'framer-motion'
-import { MessageSquare, Github, Linkedin, Info } from 'lucide-react'
+import { MessageSquare, Info } from 'lucide-react'
 import ChatInput from '../components/ChatInput'
 import ChatMessage from '../components/ChatMessage'
 import Sidebar from '../components/Sidebar'
 import AboutModal from '../components/AboutModal'
+import AuthModal from '../components/AuthModal'
 import { WS_URL } from '../lib/config'
+import { AUTH_AVAILABLE } from '../lib/config'
 import { useAuthStatus } from '../hooks/useAuthStatus'
+import { useAnonId } from '../hooks/useAnonId'
 import {
   generateMessageId,
   type ChatMessage as ChatMessageType,
@@ -26,11 +29,19 @@ const EXAMPLE_QUERIES = [
   "What did IBM say about AI consulting demand in their earnings call?",
 ]
 
-// FAANG first, then others
 const TICKER_LINE = 'AAPL · META · NFLX · GOOGL · MSFT · NVDA · TSLA · IBM · CSCO · SNOW + 17 more'
 
+function GithubIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12Z" />
+    </svg>
+  )
+}
+
 export default function ChatPage() {
-  const { getToken } = useAuthStatus()
+  const { isSignedIn, getToken, user, signOut } = useAuthStatus()
+  const anonId = useAnonId()
 
   const [messages, setMessages]             = useState<ChatMessageType[]>([])
   const [sessionId, setSessionId]           = useState<string | null>(null)
@@ -41,43 +52,52 @@ export default function ChatPage() {
   const [loadingSession, setLoadingSession] = useState(false)
   const [sidebarW, setSidebarW]             = useState(224)
   const [showAbout, setShowAbout]           = useState(false)
+  const [showAuth, setShowAuth]             = useState(false)
+  const [profileOpen, setProfileOpen]       = useState(false)
 
-  // Refs used inside WS onmessage to avoid stale closures
   const ws           = useRef<WebSocket | null>(null)
   const bottomRef    = useRef<HTMLDivElement>(null)
   const assistantId  = useRef<string | null>(null)
-  const sessionIdRef = useRef<string | null>(null)  // mirrors sessionId state
-  const webSearchRef = useRef<boolean>(false)        // mirrors webSearch state
-  // Stable ref to getToken — lets connect() (deps=[]) call the latest version
+  const sessionIdRef = useRef<string | null>(null)
+  const webSearchRef = useRef<boolean>(false)
   const getTokenRef  = useRef(getToken)
+  const profileRef   = useRef<HTMLDivElement>(null)
 
-  // Keep refs in sync with state / latest callbacks
   useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
   useEffect(() => { webSearchRef.current = webSearch }, [webSearch])
   useEffect(() => { getTokenRef.current = getToken }, [getToken])
+
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   // ── WebSocket lifecycle ──────────────────────────────────────────────────
 
   const connect = useCallback(async (sid?: string) => {
     ws.current?.close()
-    // Append Clerk JWT (if available) so backend can identify the user
     let token: string | null = null
     try { token = await getTokenRef.current?.() ?? null } catch { /* anonymous */ }
-    const base = sid ? `${WS_URL}?session_id=${encodeURIComponent(sid)}` : WS_URL
-    const url  = token ? `${base}${sid ? '&' : '?'}token=${encodeURIComponent(token)}` : base
+
+    const params = new URLSearchParams()
+    if (sid) params.set('session_id', sid)
+    if (token) params.set('token', token)
+    // Pass anon_id only when not authenticated, so backend can scope sessions
+    if (!token) params.set('anon_id', anonId)
+    const url = `${WS_URL}?${params.toString()}`
     const socket = new WebSocket(url)
 
-    socket.onopen = () => {
-      socket.send(JSON.stringify({ type: 'ping' }))
-    }
+    socket.onopen = () => socket.send(JSON.stringify({ type: 'ping' }))
 
     socket.onmessage = (e) => {
       let data: WsEvent
-      try {
-        data = JSON.parse(e.data)
-      } catch {
-        return
-      }
+      try { data = JSON.parse(e.data) } catch { return }
 
       if (data.type === 'pong') return
 
@@ -95,9 +115,7 @@ export default function ChatPage() {
         const aid = assistantId.current
         if (aid) {
           setMessages(prev => prev.map(m =>
-            m.id === aid
-              ? { ...m, content: '> ⏹ Generation stopped by user.', isStreaming: false }
-              : m
+            m.id === aid ? { ...m, content: '> ⏹ Generation stopped by user.', isStreaming: false } : m
           ))
           assistantId.current = null
         }
@@ -110,22 +128,18 @@ export default function ChatPage() {
         const aid = assistantId.current
         if (aid) {
           setMessages(prev => prev.map(m =>
-            m.id === aid
-              ? { ...m, reasoning: [...(m.reasoning ?? []), step] }
-              : m
+            m.id === aid ? { ...m, reasoning: [...(m.reasoning ?? []), step] } : m
           ))
         }
         return
       }
 
       if ((data as any).type === 'token') {
-        const token: string = (data as any).token
+        const tok: string = (data as any).token
         const aid = assistantId.current
-        if (aid && token) {
+        if (aid && tok) {
           setMessages(prev => prev.map(m =>
-            m.id === aid
-              ? { ...m, content: (m.content ?? '') + token }
-              : m
+            m.id === aid ? { ...m, content: (m.content ?? '') + tok } : m
           ))
         }
         return
@@ -138,14 +152,7 @@ export default function ChatPage() {
         if (aid) {
           setMessages(prev => prev.map(m =>
             m.id === aid
-              ? {
-                  ...m,
-                  content:    d.answer,
-                  sources:    d.citations as Source[],
-                  confidence: d.confidence,
-                  reasoning:  d.reasoning ?? m.reasoning ?? [],
-                  isStreaming: false,
-                }
+              ? { ...m, content: d.answer, sources: d.citations as Source[], confidence: d.confidence, reasoning: d.reasoning ?? m.reasoning ?? [], isStreaming: false }
               : m
           ))
           assistantId.current = null
@@ -159,9 +166,7 @@ export default function ChatPage() {
         const aid = assistantId.current
         if (aid) {
           setMessages(prev => prev.map(m =>
-            m.id === aid
-              ? { ...m, content: `> ⚠ Error: ${(data as any).detail}`, isStreaming: false }
-              : m
+            m.id === aid ? { ...m, content: `> ⚠ Error: ${(data as any).detail}`, isStreaming: false } : m
           ))
           assistantId.current = null
         }
@@ -172,17 +177,13 @@ export default function ChatPage() {
       setIsLoading(false)
       const aid = assistantId.current
       if (aid) {
-        setMessages(prev => prev.map(m =>
-          m.id === aid
-            ? { ...m, isStreaming: false }
-            : m
-        ))
+        setMessages(prev => prev.map(m => m.id === aid ? { ...m, isStreaming: false } : m))
         assistantId.current = null
       }
     }
 
     ws.current = socket
-  }, [])
+  }, [anonId])
 
   useEffect(() => {
     connect()
@@ -194,7 +195,7 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // ── Stop inference ───────────────────────────────────────────────────────
+  // ── Stop ─────────────────────────────────────────────────────────────────
 
   const stopInference = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -204,114 +205,75 @@ export default function ChatPage() {
       const aid = assistantId.current
       if (aid) {
         setMessages(prev => prev.map(m =>
-          m.id === aid
-            ? { ...m, content: '> ⏹ Generation stopped by user.', isStreaming: false }
-            : m
+          m.id === aid ? { ...m, content: '> ⏹ Generation stopped by user.', isStreaming: false } : m
         ))
         assistantId.current = null
       }
     }
   }, [])
 
-  // ── Send ────────────────────────────────────────────────────────────────
+  // ── Send ─────────────────────────────────────────────────────────────────
+
+  const dispatchQuery = useCallback((text: string) => {
+    const userMsg: ChatMessageType = { id: generateMessageId(), role: 'user', content: text, timestamp: new Date() }
+    const aId = generateMessageId()
+    assistantId.current = aId
+    const assistantMsg: ChatMessageType = { id: aId, role: 'assistant', content: '', reasoning: [], sources: [], isStreaming: true, timestamp: new Date() }
+    setMessages(prev => [...prev, userMsg, assistantMsg])
+    setIsLoading(true)
+    ws.current?.send(JSON.stringify({ type: 'query', question: text, session_id: sessionIdRef.current ?? undefined, web_search: webSearchRef.current }))
+  }, [])
 
   const sendMessage = useCallback((text: string) => {
     if (isLoading) return
     if (!ws.current || ws.current.readyState !== WebSocket.OPEN) {
       connect(sessionIdRef.current ?? undefined)
-      setTimeout(() => {
-        if (ws.current?.readyState === WebSocket.OPEN) {
-          dispatchQuery(text)
-        }
-      }, 300)
+      setTimeout(() => { if (ws.current?.readyState === WebSocket.OPEN) dispatchQuery(text) }, 300)
       return
     }
     dispatchQuery(text)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading])
 
-  const dispatchQuery = useCallback((text: string) => {
-    const userMsg: ChatMessageType = {
-      id: generateMessageId(),
-      role: 'user',
-      content: text,
-      timestamp: new Date(),
-    }
-    const aId = generateMessageId()
-    assistantId.current = aId
-    const assistantMsg: ChatMessageType = {
-      id: aId,
-      role: 'assistant',
-      content: '',
-      reasoning: [],
-      sources: [],
-      isStreaming: true,
-      timestamp: new Date(),
-    }
-
-    setMessages(prev => [...prev, userMsg, assistantMsg])
-    setIsLoading(true)
-
-    ws.current?.send(JSON.stringify({
-      type:       'query',
-      question:   text,
-      session_id: sessionIdRef.current ?? undefined,
-      web_search: webSearchRef.current,   // ref avoids stale closure when sendMessage is cached
-    }))
-  }, [])
-
-  // ── Session management ───────────────────────────────────────────────────
+  // ── Session management ────────────────────────────────────────────────────
 
   const startNewChat = useCallback(() => {
-    setMessages([])
-    setSessionId(null)
-    sessionIdRef.current = null
-    setIsLoading(false)
-    assistantId.current = null
-    connect()
+    setMessages([]); setSessionId(null); sessionIdRef.current = null
+    setIsLoading(false); assistantId.current = null; connect()
   }, [connect])
 
   const handleSelectSession = useCallback((id: string) => {
     if (isLoading) return
-    setSessionId(id)
-    sessionIdRef.current = id
-    setMessages([])
-    setLoadingSession(true)
-    connect(id)
+    setSessionId(id); sessionIdRef.current = id
+    setMessages([]); setLoadingSession(true); connect(id)
 
-    fetch(`/sessions/${id}`)
+    const headers: Record<string, string> = {}
+    if (!isSignedIn) headers['X-Anon-Id'] = anonId
+
+    fetch(`/sessions/${id}`, { headers })
       .then(r => r.json())
       .then(data => {
         if (data.messages) {
           const msgs: ChatMessageType[] = data.messages.map((m: any) => {
-            const meta = typeof m.metadata === 'string'
-              ? JSON.parse(m.metadata)
-              : (m.metadata || {})
-            return {
-              id:          generateMessageId(),
-              role:        m.role,
-              content:     m.content,
-              timestamp:   new Date(m.created_at),
-              reasoning:   meta.reasoning ?? [],
-              sources:     meta.citations ?? [],
-              confidence:  meta.confidence,
-              isStreaming: false,
-            }
+            const meta = typeof m.metadata === 'string' ? JSON.parse(m.metadata) : (m.metadata || {})
+            return { id: generateMessageId(), role: m.role, content: m.content, timestamp: new Date(m.created_at), reasoning: meta.reasoning ?? [], sources: meta.citations ?? [], confidence: meta.confidence, isStreaming: false }
           })
           setMessages(msgs)
         }
       })
       .catch(() => setMessages([]))
       .finally(() => setLoadingSession(false))
-  }, [connect, isLoading])
+  }, [connect, isLoading, isSignedIn, anonId])
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────
 
   const SIDEBAR_W = sidebarCollapsed ? 56 : sidebarW
+  const userInitial = user?.firstName?.[0] ?? user?.emailAddresses?.[0]?.emailAddress?.[0]?.toUpperCase() ?? 'U'
 
   return (
     <div className="min-h-screen bg-[#faf9f7]">
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
+      <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} />
 
       <Sidebar
         isCollapsed={sidebarCollapsed}
@@ -321,12 +283,10 @@ export default function ChatPage() {
         activeSessionId={sessionId}
         refreshTrigger={sidebarRefresh}
         onWidthChange={setSidebarW}
+        anonId={isSignedIn ? undefined : anonId}
       />
 
-      <div
-        className="min-h-screen flex flex-col transition-all duration-300"
-        style={{ paddingLeft: `${SIDEBAR_W}px` }}
-      >
+      <div className="min-h-screen flex flex-col transition-all duration-300" style={{ paddingLeft: `${SIDEBAR_W}px` }}>
         {/* Header */}
         <header className="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-slate-200">
           <div className="flex items-center justify-between h-12 px-5">
@@ -340,7 +300,7 @@ export default function ChatPage() {
             </div>
 
             {/* Top-right actions */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
               {messages.length > 0 && !isLoading && (
                 <button
                   onClick={startNewChat}
@@ -360,21 +320,50 @@ export default function ChatPage() {
               <a
                 href="https://github.com/swapnil18800/alphalens"
                 target="_blank" rel="noreferrer"
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#0a1628] px-2 py-1.5 hover:bg-slate-100 rounded-lg transition-colors"
+                className="flex items-center text-slate-400 hover:text-[#0a1628] px-2 py-1.5 hover:bg-slate-100 rounded-lg transition-colors"
                 title="GitHub"
               >
-                <Github className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">GitHub</span>
+                <GithubIcon className="w-3.5 h-3.5" />
               </a>
-              <a
-                href="https://www.linkedin.com/in/swapnilpadhi"
-                target="_blank" rel="noreferrer"
-                className="flex items-center gap-1 text-xs text-slate-400 hover:text-[#0a1628] px-2 py-1.5 hover:bg-slate-100 rounded-lg transition-colors"
-                title="LinkedIn"
-              >
-                <Linkedin className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">LinkedIn</span>
-              </a>
+
+              {/* Auth: sign in button or profile icon */}
+              {AUTH_AVAILABLE && !isSignedIn && (
+                <button
+                  onClick={() => setShowAuth(true)}
+                  className="text-xs text-slate-500 hover:text-indigo-600 font-medium px-3 py-1.5 hover:bg-indigo-50 rounded-lg transition-colors border border-slate-200 hover:border-indigo-200"
+                >
+                  Sign In
+                </button>
+              )}
+
+              {AUTH_AVAILABLE && isSignedIn && (
+                <div className="relative" ref={profileRef}>
+                  <button
+                    onClick={() => setProfileOpen(v => !v)}
+                    className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold hover:bg-indigo-700 transition-colors"
+                    title="Account"
+                  >
+                    {user?.imageUrl
+                      ? <img src={user.imageUrl} className="w-7 h-7 rounded-full" alt="avatar" />
+                      : userInitial}
+                  </button>
+                  {profileOpen && (
+                    <div className="absolute right-0 top-9 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-40 z-40">
+                      {user?.emailAddresses?.[0]?.emailAddress && (
+                        <div className="px-3 py-2 text-xs text-slate-400 border-b border-slate-100 mb-1 truncate">
+                          {user.emailAddresses[0].emailAddress}
+                        </div>
+                      )}
+                      <button
+                        onClick={() => { setProfileOpen(false); signOut() }}
+                        className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        Sign out
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </header>
@@ -402,9 +391,7 @@ export default function ChatPage() {
                 <p className="text-slate-500 max-w-md mb-2 text-sm leading-relaxed">
                   Ask anything about SEC 10-K filings and earnings transcripts.
                 </p>
-                <p className="text-xs text-slate-400 mb-10 font-mono">
-                  {TICKER_LINE}
-                </p>
+                <p className="text-xs text-slate-400 mb-10 font-mono">{TICKER_LINE}</p>
 
                 <div className="grid sm:grid-cols-2 gap-2 w-full max-w-2xl">
                   {EXAMPLE_QUERIES.map((q, i) => (
@@ -420,16 +407,14 @@ export default function ChatPage() {
               </motion.div>
             ) : (
               <div className="py-6 space-y-8">
-                {messages.map(m => (
-                  <ChatMessage key={m.id} message={m} />
-                ))}
+                {messages.map(m => <ChatMessage key={m.id} message={m} />)}
                 <div ref={bottomRef} />
               </div>
             )}
           </div>
         </main>
 
-        {/* Fixed input + footer */}
+        {/* Fixed input */}
         <div
           className="fixed bottom-0 right-0 bg-gradient-to-t from-[#faf9f7] via-[#faf9f7] to-transparent pt-8 pb-3 transition-all duration-300"
           style={{ left: `${SIDEBAR_W}px` }}
@@ -445,9 +430,6 @@ export default function ChatPage() {
             />
             <p className="text-center text-xs text-slate-400 mt-2">
               Grounded in SEC filings & earnings transcripts — verify before acting on financial data
-            </p>
-            <p className="text-center text-[10px] text-slate-300 mt-0.5">
-              © 2024 AlphaLens · MIT License · AI may make errors — always verify independently
             </p>
           </div>
         </div>

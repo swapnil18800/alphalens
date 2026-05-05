@@ -1,12 +1,42 @@
-import { useAuth } from '@clerk/clerk-react'
-import { AUTH_DISABLED } from '../lib/config'
+import { useAuth, useUser, useClerk } from '@clerk/clerk-react'
+import { AUTH_AVAILABLE } from '../lib/config'
 
-export function useAuthStatus() {
-  if (AUTH_DISABLED) {
-    return { isSignedIn: true, token: null, isLoaded: true }
+export interface AuthUser {
+  firstName?: string | null
+  imageUrl?: string
+  emailAddresses?: { emailAddress: string }[]
+}
+
+export interface AuthStatus {
+  isSignedIn: boolean
+  getToken: () => Promise<string | null>
+  isLoaded: boolean
+  user: AuthUser | null
+  signOut: () => Promise<void>
+}
+
+export function useAuthStatus(): AuthStatus {
+  if (!AUTH_AVAILABLE) {
+    // Hooks deliberately NOT called here (AUTH_AVAILABLE is a compile-time constant)
+    return {
+      isSignedIn: false,
+      getToken: async () => null,
+      isLoaded: true,
+      user: null,
+      signOut: async () => {},
+    }
   }
   // eslint-disable-next-line react-hooks/rules-of-hooks
   const { isSignedIn, getToken, isLoaded } = useAuth()
-  const getAuthToken = async () => (isSignedIn ? getToken() : null)
-  return { isSignedIn: isSignedIn ?? false, getToken: getAuthToken, isLoaded }
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { user } = useUser()
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const { signOut } = useClerk()
+  return {
+    isSignedIn: isSignedIn ?? false,
+    getToken: async () => (isSignedIn ? getToken() : null),
+    isLoaded: isLoaded ?? false,
+    user: user ?? null,
+    signOut: () => signOut(),
+  }
 }
