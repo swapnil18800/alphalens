@@ -135,18 +135,15 @@ export default function ReasoningTrace({ steps, isStreaming }: Props) {
 
   if (steps.length === 0 && !isStreaming) return null
 
-  // Deduplicate: for non-search steps keep last entry per step type;
-  // search steps accumulate (each sub-question search is a distinct entry)
+  // Accumulate all steps in arrival order — search/search_retry/evaluate/rewrite
+  // each represent distinct pipeline events and must stay chronological so the
+  // trace reads: search → generate → evaluate(low) → rewrite → retry → evaluate(final)
+  // Only collapse analyze/decompose/finalize which are single-occurrence bookends.
+  const SINGLE_OCCURRENCE = new Set(['analyze', 'decompose', 'finalize'])
   const deduped = steps.reduce<ReasoningStep[]>((acc, s) => {
-    // Always keep all search steps so multi-sub-question searches each show
-    if (s.step === 'search' || s.step === 'search_retry') {
-      return [...acc, s]
-    }
-    const idx = acc.findIndex(x => x.step === s.step)
-    if (idx >= 0) {
-      const updated = [...acc]
-      updated[idx] = s
-      return updated
+    if (SINGLE_OCCURRENCE.has(s.step)) {
+      const idx = acc.findIndex(x => x.step === s.step)
+      if (idx >= 0) { const u = [...acc]; u[idx] = s; return u }
     }
     return [...acc, s]
   }, [])
@@ -227,12 +224,17 @@ export default function ReasoningTrace({ steps, isStreaming }: Props) {
                         )}
                       </motion.div>
 
-                      {/* Chunk cards — side by side, click → right panel */}
+                      {/* Chunk cards — scrollable strip showing all citations */}
                       {hasChunks && (
-                        <div className="ml-7 mt-2 flex flex-wrap gap-1.5">
-                          {s.chunks!.map((chunk, ci) => (
-                            <ChunkCard key={ci} chunk={chunk} onViewFull={setActiveChunk} />
-                          ))}
+                        <div className="ml-7 mt-2 max-h-44 overflow-y-auto pr-1">
+                          <div className="flex flex-wrap gap-1.5">
+                            {s.chunks!.map((chunk, ci) => (
+                              <ChunkCard key={ci} chunk={chunk} onViewFull={setActiveChunk} />
+                            ))}
+                          </div>
+                          <p className="text-[10px] text-neutral-400 mt-2 px-0.5">
+                            {s.chunks!.length} {s.chunks!.length === 1 ? 'citation' : 'citations'} · click to inspect
+                          </p>
                         </div>
                       )}
                     </div>

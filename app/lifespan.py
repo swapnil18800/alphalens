@@ -9,7 +9,26 @@ from app.utils.database import create_pool, close_pool
 
 logger = logging.getLogger(__name__)
 
-_bm25_task: asyncio.Task | None = None
+_bm25_task:    asyncio.Task | None = None
+_cleanup_task: asyncio.Task | None = None
+
+
+async def _cleanup_stale_anon_sessions():
+    """Delete anon sessions not updated in the last 24 h. Runs once then every hour."""
+    from app.utils.database import get_pool
+    while True:
+        try:
+            pool = get_pool()
+            deleted = await pool.execute(
+                "DELETE FROM sessions "
+                "WHERE user_id LIKE 'anon_%' AND updated_at < NOW() - INTERVAL '1 day'"
+            )
+            count = int(deleted.split()[-1]) if deleted else 0
+            if count:
+                logger.info(f"[cleanup] Removed {count} stale anon session(s)")
+        except Exception as e:
+            logger.debug(f"[cleanup] Stale anon cleanup failed: {e}")
+        await asyncio.sleep(3600)  # repeat every hour
 
 
 async def _warm_models_background():
@@ -63,7 +82,8 @@ async def lifespan(app: FastAPI):
 
     # Background: ML model warm-up + BM25
     asyncio.create_task(_warm_models_background())
-    _bm25_task = asyncio.create_task(_build_bm25_background())
+    _bm25_task    = asyncio.create_task(_build_bm25_background())
+    _cleanup_task = asyncio.create_task(_cleanup_stale_anon_sessions())
     logger.info("[startup] ML models + BM25 index loading in background…")
 
     logger.info("[startup] Ready → http://localhost:8000  (Ctrl+C to stop)")
@@ -74,5 +94,7 @@ async def lifespan(app: FastAPI):
     # ── Shutdown ─────────────────────────────────────────────
     if _bm25_task and not _bm25_task.done():
         _bm25_task.cancel()
+    if _cleanup_task and not _cleanup_task.done():
+        _cleanup_task.cancel()
     await close_pool()
     logger.info("[shutdown] AlphaLens stopped cleanly.")

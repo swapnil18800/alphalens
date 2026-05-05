@@ -23,7 +23,8 @@ async def create_pool() -> asyncpg.Pool:
         dsn=settings.DATABASE_URL,
         min_size=settings.DB_POOL_MIN,
         max_size=settings.DB_POOL_MAX,
-        command_timeout=60,   # per-query default; BM25 bulk fetch overrides with 300s
+        command_timeout=60,
+        statement_cache_size=0,  # pgbouncer transaction-mode compatibility
     )
     db_mgr.set_pool(_pool)
     logger.info(f"[db] Pool ready (min={settings.DB_POOL_MIN} max={settings.DB_POOL_MAX})")

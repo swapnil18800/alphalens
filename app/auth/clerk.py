@@ -12,6 +12,25 @@ logger = logging.getLogger(__name__)
 ANON_USER = {"id": "anonymous", "email": "anon@alphalens.ai", "name": "Guest"}
 
 
+async def _fetch_clerk_user(user_id: str) -> dict:
+    """Enrich JWT claims that Clerk omits by calling the Clerk REST API."""
+    secret = settings.CLERK_SECRET_KEY
+    if not secret or not user_id:
+        return {}
+    try:
+        import httpx
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                f"https://api.clerk.com/v1/users/{user_id}",
+                headers={"Authorization": f"Bearer {secret}"},
+            )
+            if resp.status_code == 200:
+                return resp.json()
+    except Exception as e:
+        logger.debug(f"[clerk] API fetch failed for {user_id}: {e}")
+    return {}
+
+
 async def _verify_clerk_token(token: str) -> dict:
     """Decode and verify a Clerk JWT. Returns user payload."""
     try:
@@ -41,11 +60,37 @@ async def _verify_clerk_token(token: str) -> dict:
             algorithms=["RS256"],
             options={"verify_aud": False},
         )
-        return {
-            "id": payload.get("sub", ""),
-            "email": payload.get("email", ""),
-            "name": payload.get("name", ""),
+        full_name = (payload.get("name") or "").strip()
+        first = payload.get("given_name") or (full_name.split(" ", 1)[0] if full_name else "")
+        last  = payload.get("family_name") or (full_name.split(" ", 1)[1] if " " in full_name else "")
+        data = {
+            "id":         payload.get("sub", ""),
+            "email":      payload.get("email", ""),
+            "name":       full_name,
+            "first_name": first,
+            "last_name":  last,
+            "image_url":  payload.get("picture") or payload.get("image_url") or "",
         }
+        # JWT often lacks email/name; fall back to Clerk REST API to enrich
+        if not data["email"] or not data["name"]:
+            enriched = await _fetch_clerk_user(data["id"])
+            if enriched:
+                if not data["email"]:
+                    emails = enriched.get("email_addresses", [])
+                    pid    = enriched.get("primary_email_address_id", "")
+                    data["email"] = next(
+                        (e["email_address"] for e in emails if e.get("id") == pid),
+                        emails[0]["email_address"] if emails else "",
+                    )
+                if not data["first_name"]:
+                    data["first_name"] = enriched.get("first_name", "")
+                if not data["last_name"]:
+                    data["last_name"] = enriched.get("last_name", "")
+                if not data["name"]:
+                    data["name"] = f"{data['first_name']} {data['last_name']}".strip()
+                if not data["image_url"]:
+                    data["image_url"] = enriched.get("image_url", "")
+        return data
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {e}")
 

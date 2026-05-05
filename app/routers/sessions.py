@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from typing import Optional
 
-from app.auth.clerk import get_current_user
+from app.auth.clerk import get_optional_user
 from agent.rag import database_manager as db
 
 logger = logging.getLogger(__name__)
@@ -23,12 +23,12 @@ class CreateSessionRequest(BaseModel):
     title: Optional[str] = "New Chat"
 
 
-def _resolve_user_id(user: dict, anon_id: str | None) -> str | None:
+def _resolve_user_id(user: dict | None, anon_id: str | None) -> str | None:
     """Return the DB user_id to use for session queries.
     Authenticated users → their Clerk ID.
     Anonymous users → the anon_ prefix ID from sessionStorage (if valid), else None.
     """
-    uid = user.get("id", "")
+    uid = (user or {}).get("id", "")
     if uid and uid not in ("anonymous", ""):
         return uid
     if anon_id and anon_id.startswith("anon_"):
@@ -38,7 +38,7 @@ def _resolve_user_id(user: dict, anon_id: str | None) -> str | None:
 
 @router.get("")
 async def list_sessions(
-    user: dict = Depends(get_current_user),
+    user: Optional[dict] = Depends(get_optional_user),
     x_anon_id: Optional[str] = Header(None),
 ):
     db_uid = _resolve_user_id(user, x_anon_id)
@@ -55,7 +55,7 @@ async def list_sessions(
 @router.post("")
 async def create_session(
     req: CreateSessionRequest,
-    user: dict = Depends(get_current_user),
+    user: Optional[dict] = Depends(get_optional_user),
     x_anon_id: Optional[str] = Header(None),
 ):
     sid = str(uuid.uuid4())
@@ -70,7 +70,7 @@ async def create_session(
 @router.get("/{session_id}")
 async def get_session(
     session_id: str,
-    user: dict = Depends(get_current_user),
+    user: Optional[dict] = Depends(get_optional_user),
     x_anon_id: Optional[str] = Header(None),
 ):
     db_uid = _resolve_user_id(user, x_anon_id)
@@ -98,7 +98,7 @@ async def get_session(
 @router.delete("/{session_id}")
 async def delete_session(
     session_id: str,
-    user: dict = Depends(get_current_user),
+    user: Optional[dict] = Depends(get_optional_user),
     x_anon_id: Optional[str] = Header(None),
 ):
     db_uid = _resolve_user_id(user, x_anon_id)

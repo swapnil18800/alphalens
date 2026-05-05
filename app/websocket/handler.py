@@ -28,8 +28,9 @@ from app.utils.database import get_pool
 
 logger = logging.getLogger(__name__)
 
-MAX_SESSIONS = 10        # per-user (authenticated) or per-anon_id session cap
-MAX_ANON_SESSIONS = 500  # global DB cap across all anonymous identifiers
+MAX_SESSIONS      = 10   # per authenticated user
+MAX_ANON_SESSIONS = 3    # per anonymous identity (rolling — oldest deleted)
+MAX_ANON_GLOBAL   = 500  # global DB cap across all anonymous identifiers
 
 
 async def _load_history(session_id: str, limit: int = 10) -> list:
@@ -60,7 +61,8 @@ async def _generate_title(question: str) -> str:
         return question[:60]
 
 
-async def _update_session_title(pool, session_id: str, question: str):
+async def _update_session_title(pool, session_id: str, question: str, ws_sid: str | None = None):
+    title = question[:60]  # fallback so we always have something
     try:
         title = await _generate_title(question)
         await pool.execute(
@@ -69,47 +71,86 @@ async def _update_session_title(pool, session_id: str, question: str):
         )
     except Exception as e:
         logger.debug(f"[ws] title update failed: {e}")
+    # Always push session_updated so sidebar refreshes even on DB/LLM failure
+    if ws_sid:
+        try:
+            await manager.send(ws_sid, {
+                "type":       "session_updated",
+                "session_id": session_id,
+                "title":      title,
+            })
+        except Exception:
+            pass
+
+
+async def _upsert_user(pool, user: dict):
+    """Persist authenticated user details (Clerk → Supabase users table)."""
+    uid = user.get("id")
+    if not uid or uid == "anonymous":
+        return
+    try:
+        await pool.execute(
+            """INSERT INTO users (id, email, full_name, first_name, last_name, image_url, last_login)
+               VALUES ($1, $2, $3, $4, $5, $6, NOW())
+               ON CONFLICT (id) DO UPDATE
+                 SET email      = EXCLUDED.email,
+                     full_name  = EXCLUDED.full_name,
+                     first_name = EXCLUDED.first_name,
+                     last_name  = EXCLUDED.last_name,
+                     image_url  = EXCLUDED.image_url,
+                     last_login = NOW()""",
+            uid,
+            user.get("email", "") or f"{uid}@unknown",
+            user.get("name", ""),
+            user.get("first_name", ""),
+            user.get("last_name", ""),
+            user.get("image_url", ""),
+        )
+    except Exception as e:
+        logger.debug(f"[ws] upsert_user failed: {e}")
 
 
 async def _enforce_session_limit(pool, db_user_id: str | None):
     """Enforce per-user session cap and global anonymous cap."""
     try:
         if db_user_id is None:
-            return  # legacy NULL bucket — no longer used
+            return
+        is_anon = db_user_id.startswith("anon_")
+        cap = MAX_ANON_SESSIONS if is_anon else MAX_SESSIONS
         count = await pool.fetchval("SELECT COUNT(*) FROM sessions WHERE user_id = $1", db_user_id)
-        if count >= MAX_SESSIONS:
+        if count >= cap:
             await pool.execute(
                 "DELETE FROM sessions WHERE id IN ("
                 "  SELECT id FROM sessions WHERE user_id = $1"
                 "  ORDER BY updated_at ASC LIMIT $2"
                 ")",
-                db_user_id, count - MAX_SESSIONS + 1,
+                db_user_id, count - cap + 1,
             )
-        # Global cap on anon sessions to prevent DB bloat
-        if db_user_id.startswith("anon_"):
+        # Global cap on total anon sessions to prevent DB bloat
+        if is_anon:
             total = await pool.fetchval(
                 "SELECT COUNT(*) FROM sessions WHERE user_id LIKE 'anon_%'"
             )
-            if total > MAX_ANON_SESSIONS:
+            if total > MAX_ANON_GLOBAL:
                 await pool.execute(
                     "DELETE FROM sessions WHERE id IN ("
                     "  SELECT id FROM sessions WHERE user_id LIKE 'anon_%'"
                     "  ORDER BY updated_at ASC LIMIT $1"
                     ")",
-                    total - MAX_ANON_SESSIONS,
+                    total - MAX_ANON_GLOBAL,
                 )
     except Exception as e:
         logger.debug(f"[ws] session limit enforce failed: {e}")
 
 
-async def _ensure_session(session_id: str, user_id: str, question: str):
+async def _ensure_session(session_id: str, user_id: str, question: str, ws_sid: str | None = None):
     try:
         pool = get_pool()
         db_user_id = None if user_id in ("anonymous", "", None) else user_id
 
         existing = await pool.fetchrow("SELECT id FROM sessions WHERE id = $1", session_id)
         if existing:
-            return  # session already created — don't overwrite title on subsequent turns
+            return
 
         await _enforce_session_limit(pool, db_user_id)
 
@@ -120,8 +161,8 @@ async def _ensure_session(session_id: str, user_id: str, question: str):
                ON CONFLICT (id) DO NOTHING""",
             session_id, db_user_id, title,
         )
-        # Generate smart title in background while research runs
-        asyncio.create_task(_update_session_title(pool, session_id, question))
+        # Generate smart title in background; pushes a session_updated event when done.
+        asyncio.create_task(_update_session_title(pool, session_id, question, ws_sid))
     except Exception as e:
         logger.warning(f"[ws] ensure_session failed: {e}")
 
@@ -196,16 +237,16 @@ async def handle_connection(ws: WebSocket, session_id: Optional[str] = None, use
 
             await manager.send(sid, {"type": "ack", "session_id": use_session})
 
-            await _ensure_session(use_session, user_id, question)
+            await _ensure_session(use_session, user_id, question, ws_sid=sid)
             history = await _load_history(use_session)
 
             reasoning_steps: list[dict] = []
 
-            async def status_callback(step: str, message: str, chunks=None):
+            async def status_callback(step: str, message: str, chunks=None, _rs=reasoning_steps):
                 entry = {"step": step, "message": message}
                 if chunks:
                     entry["chunks"] = chunks
-                reasoning_steps.append(entry)
+                _rs.append(entry)
                 payload = {"type": "status", "step": step, "message": message}
                 if chunks:
                     payload["chunks"] = chunks
@@ -214,53 +255,55 @@ async def handle_connection(ws: WebSocket, session_id: Optional[str] = None, use
             async def token_callback(token: str):
                 await manager.send(sid, {"type": "token", "token": token})
 
-            async def _run_research():
-                return await research.run(
-                    question=question,
-                    user_id=user_id,
-                    session_id=use_session,
-                    conversation_history=history,
-                    status_callback=status_callback,
-                    token_callback=token_callback,
-                    web_search=web_search,
-                )
+            # Run research as an independent background task so the while loop
+            # remains free to receive cancel/ping messages during inference.
+            async def _run_and_send(
+                _q=question, _s=use_session, _rs=reasoning_steps,
+                _ws=web_search, _h=history, _uid=user_id,
+            ):
+                try:
+                    result = await research.run(
+                        question=_q,
+                        user_id=_uid,
+                        session_id=_s,
+                        conversation_history=_h,
+                        status_callback=status_callback,
+                        token_callback=token_callback,
+                        web_search=_ws,
+                    )
+                    answer     = result.get("final_answer", "")
+                    citations  = result.get("citations", [])
+                    confidence = round(result.get("confidence", 0.0), 2)
+                    await manager.send(sid, {
+                        "type":       "answer",
+                        "answer":     answer,
+                        "citations":  citations,
+                        "confidence": confidence,
+                        "reasoning":  _rs,
+                        "session_id": _s,
+                    })
+                    await _save_turn(_s, _q, answer, {
+                        "citations":  citations,
+                        "confidence": confidence,
+                        "reasoning":  _rs,
+                    })
+                except asyncio.CancelledError:
+                    logger.info(f"[ws] research cancelled session={sid}")
+                except Exception as e:
+                    logger.error(f"[ws] graph error: {e}", exc_info=True)
+                    await manager.send(sid, {
+                        "type":   "error",
+                        "detail": "Research agent encountered an error. Please try again.",
+                    })
 
-            try:
-                _current_task = asyncio.create_task(_run_research())
-                result = await _current_task
-
-                answer     = result.get("final_answer", "")
-                citations  = result.get("citations", [])
-                confidence = round(result.get("confidence", 0.0), 2)
-
-                await manager.send(sid, {
-                    "type":       "answer",
-                    "answer":     answer,
-                    "citations":  citations,
-                    "confidence": confidence,
-                    "reasoning":  reasoning_steps,
-                    "session_id": use_session,
-                })
-
-                await _save_turn(use_session, question, answer, {
-                    "citations":  citations,
-                    "confidence": confidence,
-                    "reasoning":  reasoning_steps,
-                })
-
-            except asyncio.CancelledError:
-                logger.info(f"[ws] research cancelled session={sid}")
-            except Exception as e:
-                logger.error(f"[ws] graph error: {e}", exc_info=True)
-                await manager.send(sid, {
-                    "type":   "error",
-                    "detail": "Research agent encountered an error. Please try again.",
-                })
-            finally:
-                _current_task = None
+            _current_task = asyncio.create_task(_run_and_send())
 
     except WebSocketDisconnect:
+        if _current_task and not _current_task.done():
+            _current_task.cancel()
         manager.disconnect(sid)
     except Exception as e:
         logger.error(f"[ws] unexpected error session={sid}: {e}", exc_info=True)
+        if _current_task and not _current_task.done():
+            _current_task.cancel()
         manager.disconnect(sid)

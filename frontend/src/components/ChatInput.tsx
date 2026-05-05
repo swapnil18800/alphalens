@@ -49,7 +49,7 @@ export default function ChatInput({
 
   return (
     <div className={`bg-white border rounded-2xl px-4 py-3 shadow-sm transition-colors ${
-      disabled ? 'border-slate-200' : 'border-slate-300 focus-within:border-[#0a1628]'
+      disabled ? 'border-neutral-200' : 'border-neutral-300 focus-within:border-black'
     }`}>
       <div className="flex items-end gap-3">
         <textarea
@@ -62,14 +62,14 @@ export default function ChatInput({
           disabled={disabled}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className="flex-1 resize-none bg-transparent text-sm text-slate-800 placeholder-slate-400 outline-none leading-relaxed max-h-[168px] overflow-y-auto disabled:cursor-not-allowed"
+          className="flex-1 resize-none bg-transparent text-sm text-neutral-800 placeholder-neutral-400 outline-none leading-relaxed max-h-[168px] overflow-y-auto disabled:cursor-not-allowed"
         />
 
         {/* Stop button (during inference) */}
         {disabled && onStop ? (
           <button
             onClick={onStop}
-            className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
+            className="flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center bg-neutral-100 hover:bg-black hover:text-white text-neutral-500 transition-colors"
             aria-label="Stop generation"
             title="Stop"
           >
@@ -81,8 +81,8 @@ export default function ChatInput({
             disabled={!canSend}
             className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
               canSend
-                ? 'bg-[#0a1628] hover:bg-slate-700 text-white'
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                ? 'bg-black hover:bg-neutral-800 text-white'
+                : 'bg-neutral-100 text-neutral-400 cursor-not-allowed'
             }`}
             aria-label="Send"
           >
@@ -94,21 +94,20 @@ export default function ChatInput({
         )}
       </div>
 
-      {/* Web search toggle row */}
+      {/* Web search toggle */}
       {onWebSearchToggle && (
-        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+        <div className="flex items-center gap-2 mt-2 pt-2 border-t border-neutral-100">
           <button
             onClick={onWebSearchToggle}
-            className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg transition-colors font-medium ${
               webSearch
-                ? 'bg-blue-50 text-blue-600 border border-blue-200'
-                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
+                ? 'bg-black text-white'
+                : 'text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100'
             }`}
             title={webSearch ? 'Web search on — click to disable' : 'Enable web search (Tavily)'}
           >
             <Globe className="w-3 h-3" />
-            Web search
-            {webSearch && <span className="w-1.5 h-1.5 bg-blue-500 rounded-full" />}
+            Web
           </button>
         </div>
       )}

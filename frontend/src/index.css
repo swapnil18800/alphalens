@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -10,10 +10,25 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-size: 17px;
   }
-  body { @apply bg-[#faf9f7] text-slate-900 antialiased; }
-  ::-webkit-scrollbar { width: 5px; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-slate-300 rounded-full; }
+  body { @apply bg-white text-black antialiased; }
+  html { scroll-behavior: smooth; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { @apply bg-neutral-100; }
+  ::-webkit-scrollbar-thumb { @apply bg-neutral-400 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-neutral-600; }
+}
+
+/* Animated grid background — keeps it subtle yet alive */
+@keyframes grid-drift {
+  0%   { background-position: 0 0; }
+  100% { background-position: 60px 60px; }
+}
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px);
+  background-size: 60px 60px;
+  animation: grid-drift 22s linear infinite;
 }
 
 @keyframes ticker {

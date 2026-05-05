@@ -274,7 +274,7 @@ async def node_execute_search(state: ResearchState) -> Dict[str, Any]:
                     f"({n_sq} sub-question{'s' if n_sq > 1 else ''})…")
     else:
         await _emit(state, "search_retry",
-                    f"Broadening search (attempt {iteration+1}) — {base_query[:100]}")
+                    f"Broadening search (attempt {iteration+1}) — {base_query}")
 
     logger.info(
         f"[node] execute_search | mode={query_mode} | tickers={tickers} "
@@ -412,6 +412,8 @@ async def node_execute_search(state: ResearchState) -> Dict[str, Any]:
         if query_mode in ("web_only", "hybrid") and news_count == 0 and not os.getenv("TAVILY_API_KEY"):
             parts.append("⚠ web search unavailable (TAVILY_API_KEY not set)")
 
+        # Send all retrieved chunks to UI so the reasoning trace can render them
+        # (the UI panel is scrollable, so we don't cap to 10).
         chunk_previews = [
             {
                 "ticker":  c.get("ticker", ""),
@@ -420,7 +422,7 @@ async def node_execute_search(state: ResearchState) -> Dict[str, Any]:
                 "section": c.get("section", ""),
                 "text":    (c.get("chunk_text") or "")[:300],
             }
-            for c in (all_sec + all_tc + all_news)[:10]
+            for c in (all_sec + all_tc + all_news)
         ]
         await _emit(
             state, "search",
@@ -558,7 +560,7 @@ async def node_query_rewriter(state: ResearchState) -> Dict[str, Any]:
         logger.warning(f"[node] query_rewriter failed: {e}")
 
     # Emit the actual rewritten query so users can see it in the trace
-    await _emit(state, "rewrite", f"Rewritten query: {rewritten[:120]}")
+    await _emit(state, "rewrite", f"Rewritten query: {rewritten}")
 
     return {"rewritten_query": rewritten}
 

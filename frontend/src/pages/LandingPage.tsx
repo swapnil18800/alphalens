@@ -1,33 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ArrowRight, Github, Search, Zap, Globe, ShieldCheck,
-  GitBranch, RefreshCw, ChevronRight, Info, LogIn, UserPlus,
+  ArrowRight, Search, Zap, Globe, ShieldCheck,
+  GitBranch, RefreshCw, Info, LogIn, ArrowUp,
 } from 'lucide-react'
 import AboutModal from '../components/AboutModal'
 import AuthModal from '../components/AuthModal'
 import { AUTH_AVAILABLE } from '../lib/config'
 import { useAuthStatus } from '../hooks/useAuthStatus'
 
-// ── Motion variants ───────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// Geometric hero animation — randomly placed rotating polygons + grid
+// ──────────────────────────────────────────────────────────────────────────
 
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  visible: (i = 0) => ({
-    opacity: 1, y: 0,
-    transition: { duration: 0.55, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] as const },
-  }),
-}
-
-const stagger = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.08 } },
-}
-
-// ── Animated background ───────────────────────────────────────────────────
-
-function AnimatedBackground() {
+function GeometricBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -37,49 +24,71 @@ function AnimatedBackground() {
     if (!ctx) return
 
     let animId: number
+
+    type Poly = { cx: number; cy: number; r: number; sides: number; rot: number; speed: number; alpha: number }
+    let polys: Poly[] = []
+
+    const initPolys = (w: number, h: number) => {
+      polys = Array.from({ length: 18 }, () => ({
+        cx:    Math.random() * w,
+        cy:    Math.random() * h,
+        r:     Math.random() * 85 + 40,
+        sides: [3, 4, 6, 8][Math.floor(Math.random() * 4)],
+        rot:   Math.random() * Math.PI * 2,
+        speed: (Math.random() - 0.5) * 0.009,
+        alpha: Math.random() * 0.07 + 0.03,
+      }))
+    }
+
     const resize = () => {
       const p = canvas.parentElement
-      if (p) { canvas.width = p.offsetWidth; canvas.height = p.offsetHeight }
+      if (!p) return
+      canvas.width  = p.offsetWidth
+      canvas.height = p.offsetHeight
+      if (polys.length === 0) initPolys(canvas.width, canvas.height)
     }
-    requestAnimationFrame(resize)
-    const ro = new ResizeObserver(() => requestAnimationFrame(resize))
+
+    resize()
+    const ro = new ResizeObserver(() => resize())
     if (canvas.parentElement) ro.observe(canvas.parentElement)
     window.addEventListener('resize', resize)
 
-    const N = 90
-    const particles = Array.from({ length: N }, () => ({
-      x: Math.random() * (canvas.width || window.innerWidth),
-      y: Math.random() * (canvas.height || 600),
-      vx: (Math.random() - 0.5) * 0.35,
-      vy: (Math.random() - 0.5) * 0.35,
-      r: Math.random() * 1.8 + 0.6,
-    }))
+    const drawPoly = (p: Poly) => {
+      ctx.beginPath()
+      for (let i = 0; i < p.sides; i++) {
+        const a = p.rot + (i * Math.PI * 2) / p.sides
+        const x = p.cx + Math.cos(a) * p.r
+        const y = p.cy + Math.sin(a) * p.r
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+      }
+      ctx.closePath()
+      ctx.strokeStyle = `rgba(0,0,0,${p.alpha + 0.12})`
+      ctx.lineWidth = 1
+      ctx.stroke()
+      ctx.fillStyle = `rgba(0,0,0,${p.alpha})`
+      ctx.fill()
+    }
 
     const draw = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height)
-      for (let i = 0; i < N; i++) {
-        for (let j = i + 1; j < N; j++) {
-          const dx = particles[i].x - particles[j].x
-          const dy = particles[i].y - particles[j].y
-          const d = Math.sqrt(dx * dx + dy * dy)
-          if (d < 140) {
-            ctx.beginPath()
-            ctx.moveTo(particles[i].x, particles[i].y)
-            ctx.lineTo(particles[j].x, particles[j].y)
-            ctx.strokeStyle = `rgba(99,102,241,${0.22 * (1 - d / 140)})`
-            ctx.lineWidth = 0.7
-            ctx.stroke()
-          }
-        }
+      ctx.strokeStyle = 'rgba(0,0,0,0.035)'
+      ctx.lineWidth = 1
+      const step = 60
+      for (let x = 0; x < canvas.width; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke()
       }
-      for (const p of particles) {
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(99,102,241,0.45)'
-        ctx.fill()
-        p.x += p.vx; p.y += p.vy
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1
+      for (let y = 0; y < canvas.height; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke()
+      }
+      for (const p of polys) {
+        drawPoly(p)
+        p.rot += p.speed
+        p.cx  += Math.cos(p.rot) * 0.4
+        p.cy  += Math.sin(p.rot) * 0.4
+        if (p.cx < -120) p.cx = canvas.width  + 120
+        if (p.cx > canvas.width  + 120) p.cx = -120
+        if (p.cy < -120) p.cy = canvas.height + 120
+        if (p.cy > canvas.height + 120) p.cy = -120
       }
       animId = requestAnimationFrame(draw)
     }
@@ -88,134 +97,272 @@ function AnimatedBackground() {
     return () => { cancelAnimationFrame(animId); ro.disconnect(); window.removeEventListener('resize', resize) }
   }, [])
 
-  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" style={{ opacity: 0.7 }} />
+  return <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
 }
 
-// ── Logo ticker ───────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// Section transition — gradient fade that bridges background colour changes
+// ──────────────────────────────────────────────────────────────────────────
 
-const TICKERS = ['AAPL','ADBE','AMD','AMZN','AVGO','CRM','CSCO','GOOGL','IBM','INTC','META','MSFT','NFLX','NVDA','ORCL','PANW','PLTR','PYPL','QCOM','SNOW','TSLA','UBER']
+function SectionTransition({ from = 'white', to = '#f5f5f5' }: { from?: string; to?: string }) {
+  return (
+    <div
+      className="w-full h-16 pointer-events-none"
+      style={{ background: `linear-gradient(to bottom, ${from}, ${to})` }}
+    />
+  )
+}
 
-// Tech-stack pills — no external images needed
-const TECH_STACK = [
-  { name: 'DeepSeek V3',   color: '#4D6BFE' },
-  { name: 'LangGraph',     color: '#1a7f37' },
-  { name: 'FastAPI',       color: '#009688' },
-  { name: 'pgvector',      color: '#7c5bdb' },
-  { name: 'React 18',      color: '#61DAFB', dark: true },
-  { name: 'PostgreSQL',    color: '#336791' },
-  { name: 'Tailwind CSS',  color: '#06B6D4', dark: true },
-  { name: 'Vite',          color: '#646cff' },
-  { name: 'Cerebras',      color: '#e5523f' },
-  { name: 'Tavily',        color: '#ff6b35' },
-  { name: 'Clerk',         color: '#6c47ff' },
-  { name: 'BM25',          color: '#475569' },
+// ──────────────────────────────────────────────────────────────────────────
+// Smooth infinite ticker with JS animation + mouse drag
+// ──────────────────────────────────────────────────────────────────────────
+
+function useInfiniteTicker(pixelsPerFrame = 0.7) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const posRef   = useRef(0)
+  const rafRef   = useRef<number>(0)
+  const dragRef  = useRef(false)
+  const lastXRef = useRef(0)
+
+  useEffect(() => {
+    const track = trackRef.current
+    if (!track) return
+
+    const tick = () => {
+      if (!dragRef.current) {
+        posRef.current -= pixelsPerFrame
+        const half = track.scrollWidth / 2
+        if (posRef.current <= -half) posRef.current += half
+        if (posRef.current > 0) posRef.current -= half
+        track.style.transform = `translateX(${posRef.current}px)`
+      }
+      rafRef.current = requestAnimationFrame(tick)
+    }
+    rafRef.current = requestAnimationFrame(tick)
+
+    const onDown = (e: MouseEvent) => {
+      dragRef.current = true
+      lastXRef.current = e.clientX
+      document.body.style.cursor = 'grabbing'
+    }
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      posRef.current += e.clientX - lastXRef.current
+      lastXRef.current = e.clientX
+      const half = track.scrollWidth / 2
+      if (posRef.current <= -half) posRef.current += half
+      if (posRef.current > 0) posRef.current -= half
+      track.style.transform = `translateX(${posRef.current}px)`
+    }
+    const onUp = () => { dragRef.current = false; document.body.style.cursor = '' }
+
+    const wrapper = track.parentElement
+    wrapper?.addEventListener('mousedown', onDown)
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+
+    return () => {
+      cancelAnimationFrame(rafRef.current)
+      wrapper?.removeEventListener('mousedown', onDown)
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [pixelsPerFrame])
+
+  return trackRef
+}
+
+// ──────────────────────────────────────────────────────────────────────────
+// Coverage universe
+// ──────────────────────────────────────────────────────────────────────────
+
+const COMPANIES = [
+  { t: 'AAPL',  n: 'Apple' },
+  { t: 'ADBE',  n: 'Adobe' },
+  { t: 'AMD',   n: 'AMD' },
+  { t: 'AMZN',  n: 'Amazon' },
+  { t: 'AVGO',  n: 'Broadcom' },
+  { t: 'CRM',   n: 'Salesforce' },
+  { t: 'CSCO',  n: 'Cisco' },
+  { t: 'GOOGL', n: 'Alphabet' },
+  { t: 'IBM',   n: 'IBM' },
+  { t: 'INTC',  n: 'Intel' },
+  { t: 'META',  n: 'Meta' },
+  { t: 'MSFT',  n: 'Microsoft' },
+  { t: 'NFLX',  n: 'Netflix' },
+  { t: 'NVDA',  n: 'NVIDIA' },
+  { t: 'ORCL',  n: 'Oracle' },
+  { t: 'PANW',  n: 'Palo Alto' },
+  { t: 'PLTR',  n: 'Palantir' },
+  { t: 'PYPL',  n: 'PayPal' },
+  { t: 'QCOM',  n: 'Qualcomm' },
+  { t: 'SNOW',  n: 'Snowflake' },
+  { t: 'TSLA',  n: 'Tesla' },
+  { t: 'UBER',  n: 'Uber' },
 ]
 
-function LogoTicker() {
-  // Double for seamless infinite loop
-  const doubled = [...TICKERS, ...TICKERS]
+const STACK = [
+  { f: 'deepseek.png',   n: 'DeepSeek V3' },
+  { f: 'cerebras.png',   n: 'Cerebras' },
+  { f: 'openai.png',     n: 'OpenAI' },
+  { f: 'fastapi.svg',    n: 'FastAPI' },
+  { f: 'react.svg',      n: 'React' },
+  { f: 'typescript.svg', n: 'TypeScript' },
+  { f: 'tailwind.svg',   n: 'Tailwind' },
+  { f: 'vite.svg',       n: 'Vite' },
+  { f: 'postgresql.png', n: 'PostgreSQL' },
+  { f: 'supabase.png',   n: 'Supabase' },
+  { f: 'tavily.png',     n: 'Tavily' },
+  { f: 'clerk.png',      n: 'Clerk' },
+  { f: 'langsmith.svg',  n: 'LangSmith' },
+  { f: 'railway.png',    n: 'Railway' },
+]
+
+function CompanyTicker() {
+  const doubled  = [...COMPANIES, ...COMPANIES]
+  const trackRef = useInfiniteTicker(0.6)
   return (
-    <div className="border-y border-slate-200 bg-white/70 overflow-hidden py-5">
-      <p className="text-center text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-4">
-        Coverage universe
-      </p>
-      <div className="relative">
-        <div className="flex ticker-track gap-8 items-center">
-          {doubled.map((t, i) => (
-            <img
-              key={`${t}-${i}`}
-              src={`/logos/${t}.svg`}
-              alt={t}
-              className="h-7 w-auto shrink-0"
-              style={{ filter: 'grayscale(100%) opacity(0.45)' }}
-            />
+    <motion.section
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: false, margin: '-80px' }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="bg-[#f3f4f6] py-14"
+    >
+      <div className="max-w-6xl mx-auto px-6 mb-10">
+        <p className="text-xs font-mono uppercase tracking-[0.3em] text-neutral-400 mb-2">01 — Coverage</p>
+        <h2 className="text-4xl md:text-5xl font-extrabold text-black tracking-tight">Coverage Universe</h2>
+        <p className="text-base text-neutral-500 mt-2 max-w-xl">
+          28 large-cap technology companies. Over 40,000+ SEC 10-K filings and quarterly earnings transcripts indexed from FY2023 to FY2026.
+        </p>
+      </div>
+      <div className="relative overflow-hidden cursor-grab select-none">
+        <div ref={trackRef} className="flex gap-14 items-end" style={{ width: 'max-content' }}>
+          {doubled.map(({ t, n }, i) => (
+            <div key={`${t}-${i}`} className="shrink-0 flex flex-col items-center gap-3 w-32">
+              <img src={`/logos/${t}.svg`} alt={n} className="h-14 w-auto" style={{ filter: 'grayscale(100%)' }} />
+              <span className="text-sm font-semibold text-black tracking-tight">{n}</span>
+              <span className="text-[11px] text-neutral-400 font-mono">{t}</span>
+            </div>
           ))}
         </div>
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-[#f3f4f6] to-transparent" />
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#f3f4f6] to-transparent" />
       </div>
-      {/* Fade edges */}
-      <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white to-transparent" />
-      <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white to-transparent" />
-    </div>
+    </motion.section>
   )
 }
 
-function TechTicker() {
-  const doubled = [...TECH_STACK, ...TECH_STACK]
+function StackTicker() {
+  const doubled  = [...STACK, ...STACK]
+  const trackRef = useInfiniteTicker(0.9)
   return (
-    <div className="overflow-hidden py-4 bg-slate-50/80 border-b border-slate-200">
-      <p className="text-center text-[10px] font-mono text-slate-400 uppercase tracking-widest mb-3">
-        Built with
-      </p>
-      <div className="flex ticker-track-fast gap-3 items-center">
-        {doubled.map(({ name, color, dark }, i) => (
-          <span
-            key={`${name}-${i}`}
-            className="shrink-0 px-3 py-1 rounded-full text-[11px] font-semibold tracking-wide"
-            style={{
-              backgroundColor: color + '18',
-              color: dark ? color : color,
-              border: `1px solid ${color}30`,
-            }}
-          >
-            {name}
-          </span>
-        ))}
+    <motion.section
+      initial={{ opacity: 0, y: 30 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: false, margin: '-80px' }}
+      transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+      className="bg-[#f3f4f6] py-14"
+    >
+      <div className="max-w-6xl mx-auto px-6 mb-10">
+        <p className="text-xs font-mono uppercase tracking-[0.3em] text-neutral-400 mb-2">03 — Stack</p>
+        <h2 className="text-4xl md:text-5xl font-extrabold text-black tracking-tight">Built With Modern AI Stack</h2>
+        <p className="text-base text-neutral-500 mt-2 max-w-xl">
+          FastAPI + LangGraph backend, React + TypeScript frontend, PostgreSQL + pgvector, with DeepSeek, Cerebras, and OpenAI powering an agentic RAG pipeline.
+        </p>
       </div>
-    </div>
+      <div className="relative overflow-hidden cursor-grab select-none">
+        <div ref={trackRef} className="flex gap-12 items-end" style={{ width: 'max-content' }}>
+          {doubled.map(({ f, n }, i) => (
+            <div key={`${f}-${i}`} className="shrink-0 flex flex-col items-center gap-3 w-28">
+              <div className="h-14 w-14 bg-white rounded-xl border border-black/8 shadow-sm flex items-center justify-center p-2">
+                <img src={`/stack_logos/${f}`} alt={n} className="max-h-10 max-w-[36px] w-auto object-contain" />
+              </div>
+              <span className="text-xs font-semibold text-neutral-700 tracking-tight">{n}</span>
+            </div>
+          ))}
+        </div>
+        <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-24 bg-gradient-to-r from-neutral-50 to-transparent" />
+        <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-neutral-50 to-transparent" />
+      </div>
+    </motion.section>
   )
 }
 
-// ── Static data ───────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// Features — compact card grid, alternating L/R pop-in
+// ──────────────────────────────────────────────────────────────────────────
 
 const FEATURES = [
   {
-    icon: Search,
-    title: 'Hybrid RAG Retrieval',
-    desc: 'pgvector cosine search fused with BM25 Okapi via Reciprocal Rank Fusion, then reranked by a cross-encoder. Dual corpus: SEC 10-K filings + earnings transcripts.',
-  },
-  {
     icon: GitBranch,
-    title: 'LangGraph Agent Pipeline',
-    desc: '5-node deterministic graph: analyze → search → generate → evaluate → retry. Self-corrects when faithfulness score drops below threshold (max 2 retries).',
+    title: 'A 7-node reasoning graph',
+    desc: 'Plan, search, generate, evaluate, rewrite, finalize. Every query travels a deterministic LangGraph pipeline that self-corrects when faithfulness scores fall below 0.65 — capped at two retries.',
+    metric: '7 nodes',
   },
   {
-    icon: Globe,
-    title: 'Live Web Search Augmentation',
-    desc: 'Optionally extend retrieval beyond the static 42K-passage corpus with Tavily real-time news, press releases, and analyst commentary.',
+    icon: Search,
+    title: 'Hybrid retrieval, rerank-validated',
+    desc: 'pgvector cosine search fused with BM25 Okapi via Reciprocal Rank Fusion, then reranked with a cross-encoder. Dual corpus: SEC 10-K filings and earnings transcripts.',
+    metric: '42,000+ passages',
   },
   {
     icon: ShieldCheck,
-    title: 'Faithfulness Scoring',
-    desc: 'Heuristic eval runs first; LLM-as-judge only for borderline scores (0.50–0.75) on the first iteration. Confidence badge surfaced inline on every answer.',
+    title: 'Faithfulness over fluency',
+    desc: 'Every answer is groundedness-evaluated before delivery. Heuristic eval runs first; LLM-as-judge is invoked only on borderline scores. Confidence is surfaced inline.',
+    metric: 'Heuristic + LLM judge',
   },
   {
     icon: Zap,
-    title: 'Multi-Provider LLM Routing',
-    desc: 'DeepSeek V3 primary for cost-efficient inference, Cerebras Qwen-3-235B for speed, OpenAI GPT-4.1-mini as failsafe — automatic failover with zero config.',
+    title: 'Three providers, one API',
+    desc: 'DeepSeek V3 primary for cost-efficient reasoning. Cerebras Qwen-3-235B for sub-second streaming. OpenAI GPT-4.1-mini as failsafe. Provider failover is automatic and transparent.',
+    metric: 'Auto failover',
+  },
+  {
+    icon: Globe,
+    title: 'Optional live web augmentation',
+    desc: 'Toggle web search to extend retrieval beyond the static corpus. Tavily fetches real-time news, press releases, and analyst commentary — cited alongside filing passages.',
+    metric: 'Tavily',
   },
   {
     icon: RefreshCw,
-    title: 'Semantic Response Cache',
-    desc: 'Cosine similarity ≥ 0.92 threshold on query embeddings. Near-zero latency on repeated or semantically equivalent questions; cache stored in pgvector.',
+    title: 'Semantic cache, near-zero latency',
+    desc: 'Repeated or semantically equivalent queries are served from a pgvector cache at cosine ≥ 0.92. No round-trip, no token spend — just instant answers from prior runs.',
+    metric: 'cosine ≥ 0.92',
   },
 ]
 
-const PIPELINE = [
-  { label: 'Analyze',  desc: 'Intent · tickers · sub-questions' },
-  { label: 'Search',   desc: 'pgvector + BM25 → RRF → cross-encoder' },
-  { label: 'Generate', desc: 'DeepSeek V3 / Cerebras streaming' },
-  { label: 'Evaluate', desc: 'Heuristic + LLM-as-judge faithfulness' },
-  { label: 'Deliver',  desc: 'WebSocket tokens + source citations' },
-]
+function FeatureCard({ feature, index }: { feature: typeof FEATURES[0]; index: number }) {
+  const Icon    = feature.icon
+  const fromLeft = index % 2 === 0
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: fromLeft ? -120 : 120 }}
+      whileInView={{ opacity: 1, x: 0 }}
+      viewport={{ once: false, margin: '-10px' }}
+      transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+      className="border border-black/10 rounded-2xl p-6 bg-white hover:border-black/25 hover:shadow-sm transition-all group"
+    >
+      <div className="flex items-start gap-4">
+        <div className="shrink-0 w-10 h-10 bg-black rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+          <Icon className="w-5 h-5 text-white" strokeWidth={1.5} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-[10px] font-mono text-neutral-400">0{index + 1}</span>
+            <span className="text-[10px] font-mono bg-black/5 text-black px-2 py-0.5 rounded-full">{feature.metric}</span>
+          </div>
+          <h3 className="text-base font-bold text-black mb-2 leading-snug">{feature.title}</h3>
+          <p className="text-sm text-neutral-600 leading-relaxed">{feature.desc}</p>
+        </div>
+      </div>
+    </motion.div>
+  )
+}
 
-const STATS = [
-  { value: '27',      label: 'Companies covered' },
-  { value: '42K+',    label: 'Indexed passages' },
-  { value: 'FY23–26', label: 'Filing range' },
-  { value: '5-node',  label: 'Agent graph' },
-]
-
-// ── GitHub filled icon (SVG path) ─────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// GitHub icon (filled)
+// ──────────────────────────────────────────────────────────────────────────
 
 function GithubIcon({ className }: { className?: string }) {
   return (
@@ -225,96 +372,100 @@ function GithubIcon({ className }: { className?: string }) {
   )
 }
 
-// ── Component ─────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────────
+// Page
+// ──────────────────────────────────────────────────────────────────────────
 
 export default function LandingPage() {
   const navigate = useNavigate()
-  const { isSignedIn, signOut } = useAuthStatus()
-  const [showAbout, setShowAbout] = useState(false)
-  const [showAuth, setShowAuth] = useState(false)
-  const [authTab, setAuthTab] = useState<'sign-in' | 'sign-up'>('sign-in')
+  const { isSignedIn, signOut, user } = useAuthStatus()
+  const [showAbout, setShowAbout]     = useState(false)
+  const [showAuth,  setShowAuth]      = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [showScrollTop, setShowScrollTop] = useState(false)
   const profileRef = useRef<HTMLDivElement>(null)
 
-  // Close profile dropdown on outside click
+  useEffect(() => {
+    const onScroll = () => setShowScrollTop(window.scrollY > 400)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
-        setProfileOpen(false)
-      }
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) setProfileOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const openSignIn = () => { setAuthTab('sign-in'); setShowAuth(true) }
-  const openSignUp = () => { setAuthTab('sign-up'); setShowAuth(true) }
+  const u: any = user
+  const fullName    = `${u?.firstName ?? ''} ${u?.lastName ?? ''}`.trim() || u?.fullName || 'Account'
+  const userInitial = (u?.firstName?.[0] || u?.emailAddresses?.[0]?.emailAddress?.[0] || 'U').toUpperCase()
 
   return (
-    <div className="min-h-screen bg-[#faf9f7] text-[#0a1628] flex flex-col overflow-x-hidden">
+    // No overflow-x-hidden on root — it breaks sticky positioning in Chrome
+    <div className="min-h-screen bg-white text-black flex flex-col">
       <AboutModal isOpen={showAbout} onClose={() => setShowAbout(false)} />
-      <AuthModal isOpen={showAuth} onClose={() => setShowAuth(false)} defaultTab={authTab} />
+      <AuthModal  isOpen={showAuth}  onClose={() => setShowAuth(false)} />
 
-      {/* ── Nav ──────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-30 flex items-center justify-between px-8 py-4 bg-white/85 backdrop-blur border-b border-slate-200/80">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 bg-[#0a1628] rounded-lg flex items-center justify-center text-white text-sm font-black">α</div>
-          <span className="text-base font-bold tracking-tight">AlphaLens</span>
-        </div>
+      {/* ── Nav — sticky, always visible ─────────────────────────── */}
+      <nav className="sticky top-0 z-30 flex items-center justify-between px-6 md:px-10 py-4 bg-white/90 backdrop-blur border-b border-black/10">
+        <button
+          onClick={() => { window.location.href = '/' }}
+          className="flex items-center gap-2.5 hover:opacity-80 transition-opacity"
+        >
+          <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center text-white text-xl font-black">α</div>
+          <span className="text-2xl font-bold tracking-tight">AlphaLens</span>
+        </button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={() => setShowAbout(true)}
-            className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-[#0a1628] transition-colors px-2 py-1.5"
-            title="About"
+            className="hidden sm:flex items-center gap-1.5 text-sm text-neutral-600 hover:text-black transition-colors px-2.5 py-1.5"
           >
             <Info className="w-4 h-4" />
-            <span className="hidden sm:inline">About</span>
+            About
           </button>
 
           <a
             href="https://github.com/swapnil18800/alphalens"
             target="_blank" rel="noreferrer"
-            className="flex items-center text-slate-500 hover:text-[#0a1628] transition-colors px-2 py-1.5"
+            className="flex items-center text-neutral-700 hover:text-black transition-colors p-2"
             title="GitHub"
           >
             <GithubIcon className="w-4 h-4" />
           </a>
 
-          {/* Auth section */}
           {AUTH_AVAILABLE && !isSignedIn && (
-            <>
-              <button
-                onClick={openSignIn}
-                className="flex items-center gap-1.5 text-sm text-slate-600 hover:text-[#0a1628] px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-              >
-                <LogIn className="w-3.5 h-3.5" />
-                Sign In
-              </button>
-              <button
-                onClick={openSignUp}
-                className="flex items-center gap-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition-colors"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                Sign Up
-              </button>
-            </>
+            <button
+              onClick={() => setShowAuth(true)}
+              className="flex items-center gap-1.5 text-sm text-black px-3 py-1.5 rounded-lg hover:bg-black/5 transition-colors font-medium"
+            >
+              <LogIn className="w-3.5 h-3.5" />
+              Sign in
+            </button>
           )}
 
           {AUTH_AVAILABLE && isSignedIn && (
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() => setProfileOpen(v => !v)}
-                className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold hover:bg-indigo-700 transition-colors"
-                title="Account"
+                className="w-8 h-8 rounded-full overflow-hidden bg-black flex items-center justify-center text-white text-xs font-bold ring-1 ring-black/10 hover:opacity-80 transition-opacity"
+                title={fullName}
               >
-                α
+                {u?.imageUrl
+                  ? <img src={u.imageUrl} className="w-full h-full object-cover" alt={fullName} referrerPolicy="no-referrer" />
+                  : <span>{userInitial}</span>}
               </button>
               {profileOpen && (
-                <div className="absolute right-0 top-10 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 min-w-36 z-40">
+                <div className="absolute right-0 top-10 bg-white border border-black/10 rounded-xl shadow-xl p-1.5 min-w-44 z-40">
+                  <div className="px-3 py-2 border-b border-black/5 mb-1">
+                    <p className="text-sm font-semibold text-black truncate">{fullName}</p>
+                  </div>
                   <button
                     onClick={() => { setProfileOpen(false); signOut() }}
-                    className="w-full text-left px-3 py-2 text-sm text-slate-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                    className="w-full text-left px-3 py-2 text-sm text-neutral-700 hover:bg-black hover:text-white rounded-lg transition-colors"
                   >
                     Sign out
                   </button>
@@ -325,7 +476,7 @@ export default function LandingPage() {
 
           <button
             onClick={() => navigate('/chat')}
-            className="flex items-center gap-1.5 bg-[#0a1628] hover:bg-slate-800 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors ml-1"
+            className="flex items-center gap-1.5 bg-black hover:bg-neutral-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors ml-1"
           >
             Open App <ArrowRight className="w-3.5 h-3.5" />
           </button>
@@ -333,224 +484,139 @@ export default function LandingPage() {
       </nav>
 
       {/* ── Hero ─────────────────────────────────────────────────────── */}
-      <section className="relative flex flex-col items-center text-center px-6 pt-28 pb-24 overflow-hidden">
-        <AnimatedBackground />
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 left-1/4 w-[700px] h-[700px] rounded-full bg-indigo-100 opacity-30 blur-3xl" />
-          <div className="absolute top-20 right-0 w-[500px] h-[500px] rounded-full bg-blue-100 opacity-20 blur-3xl" />
-          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full bg-violet-50 opacity-25 blur-3xl" />
-        </div>
-
+      <section className="relative flex flex-col items-center text-center px-6 pt-32 pb-32 overflow-hidden">
+        <GeometricBackground />
         <motion.div
-          className="relative flex flex-col items-center gap-6 max-w-3xl"
-          variants={stagger} initial="hidden" animate="visible"
+          className="relative flex flex-col items-center gap-8 max-w-4xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          <motion.div variants={fadeUp} custom={0} className="inline-flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-medium px-3 py-1.5 rounded-full">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse inline-block" />
-            Powered by DeepSeek V3 + LangGraph RAG pipeline
-          </motion.div>
-
-          <motion.h1
-            variants={fadeUp} custom={1}
-            className="text-5xl md:text-[3.8rem] font-extrabold leading-[1.08] tracking-tight"
-          >
-            Agentic AI research
-            <br className="hidden sm:block" />
-            <span className="bg-gradient-to-r from-indigo-600 via-blue-600 to-indigo-500 bg-clip-text text-transparent">
-              {' '}for equity analysts
-            </span>
-          </motion.h1>
-
-          <motion.p
-            variants={fadeUp} custom={2}
-            className="text-slate-600 text-base sm:text-lg max-w-xl leading-relaxed"
-          >
-            Ask deep questions about SEC 10-K filings and earnings calls.
-            AlphaLens reasons over your query, retrieves from 42,000+ indexed passages
-            across 27 companies, and returns a grounded, cited answer in seconds.
-          </motion.p>
-
-          <motion.div variants={fadeUp} custom={3} className="flex flex-wrap justify-center gap-3">
+          <h1 className="text-6xl md:text-7xl lg:text-[5.5rem] font-extrabold leading-[1.02] tracking-tight">
+            Equity analyst workflows,
+            <br />
+            <span className="italic font-medium">reimagined.</span>
+          </h1>
+          <p className="text-neutral-600 text-lg md:text-xl max-w-2xl leading-relaxed">
+            Stop digging through filings manually. AlphaLens does the heavy lifting — retrieve, reason, and cite across 40,000+ SEC filings and earnings transcripts in seconds.
+          </p>
+          <div className="flex flex-wrap justify-center gap-3 mt-2">
             <button
               onClick={() => navigate('/chat')}
-              className="flex items-center gap-2 bg-[#0a1628] hover:bg-slate-800 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-md"
+              className="flex items-center gap-2 bg-black hover:bg-neutral-800 text-white font-semibold px-7 py-3.5 rounded-xl transition-colors shadow-sm"
             >
               Start Researching <ArrowRight className="w-4 h-4" />
             </button>
-            {AUTH_AVAILABLE && !isSignedIn && (
-              <button
-                onClick={openSignUp}
-                className="flex items-center gap-2 bg-white border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 text-slate-600 px-6 py-3 rounded-xl transition-colors"
-              >
-                <UserPlus className="w-4 h-4" /> Create Account
-              </button>
-            )}
-            {(!AUTH_AVAILABLE || isSignedIn) && (
-              <a
-                href="https://github.com/swapnil18800/alphalens"
-                target="_blank" rel="noreferrer"
-                className="flex items-center gap-2 bg-white border border-slate-300 hover:border-slate-400 text-slate-600 hover:text-[#0a1628] px-6 py-3 rounded-xl transition-colors"
-              >
-                <GithubIcon className="w-4 h-4" /> View Source
-              </a>
-            )}
-          </motion.div>
-
-          <motion.p variants={fadeUp} custom={4} className="text-xs text-slate-400 font-mono mt-1">
-            No sign-up required · AAPL · META · NVDA · MSFT · GOOGL + 22 more
-          </motion.p>
+            <a
+              href="https://github.com/swapnil18800/alphalens"
+              target="_blank" rel="noreferrer"
+              className="flex items-center gap-2 bg-white border border-black/15 hover:border-black hover:bg-black hover:text-white text-black px-7 py-3.5 rounded-xl transition-colors font-semibold"
+            >
+              <GithubIcon className="w-4 h-4" /> View Source
+            </a>
+          </div>
         </motion.div>
       </section>
 
-      {/* ── Company logo ticker ───────────────────────────────────────── */}
-      <div className="relative">
-        <LogoTicker />
+      <SectionTransition from="white" to="#f3f4f6" />
+
+      {/* ── Coverage Universe ────────────────────────────────────────── */}
+      <CompanyTicker />
+
+      <SectionTransition from="#f3f4f6" to="#f9fafb" />
+
+      {/* ── Features — compact card grid ─────────────────────────────── */}
+      <motion.section
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false, margin: '-80px' }}
+        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+        className="w-full bg-[#f9fafb] py-20"
+      >
+      <div className="px-6 max-w-6xl mx-auto">
+        <div className="mb-12 max-w-2xl">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-neutral-400 mb-3">02 — Architecture</p>
+          <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4 leading-tight">
+            Six engineering choices,<br />one honest answer.
+          </h2>
+          <p className="text-neutral-600 text-base leading-relaxed">
+            What separates AlphaLens from a generic LLM chatbot — every layer optimised for retrieval grounding,
+            faithful generation, and transparent reasoning.
+          </p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          {FEATURES.map((f, i) => <FeatureCard key={f.title} feature={f} index={i} />)}
+        </div>
       </div>
+      </motion.section>
 
-      {/* ── Tech stack ticker ─────────────────────────────────────────── */}
-      <TechTicker />
+      <SectionTransition from="#f9fafb" to="#f3f4f6" />
 
-      {/* ── Stats ────────────────────────────────────────────────────── */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="max-w-4xl mx-auto px-6 py-7 grid grid-cols-2 sm:grid-cols-4 gap-6">
-          {STATS.map(({ value, label }, i) => (
-            <motion.div
-              key={label}
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: i * 0.07 }}
-              className="text-center"
-            >
-              <p className="text-2xl font-bold text-[#0a1628]">{value}</p>
-              <p className="text-xs text-slate-400 mt-0.5">{label}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
+      {/* ── Built With ────────────────────────────────────────────────── */}
+      <StackTicker />
 
-      {/* ── Pipeline ─────────────────────────────────────────────────── */}
-      <section className="px-6 py-16">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
-            <h2 className="text-2xl font-bold text-[#0a1628] mb-2">How a query runs</h2>
-            <p className="text-sm text-slate-400">Five deterministic steps, every time — self-correcting on low confidence</p>
-          </motion.div>
-
-          <div className="flex flex-col sm:flex-row">
-            {PIPELINE.map(({ label, desc }, i) => (
-              <motion.div
-                key={label}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.09 }}
-                className="relative flex-1"
-              >
-                <div className="bg-white border border-slate-200 p-4 h-full sm:first:rounded-l-xl sm:last:rounded-r-xl rounded-xl sm:rounded-none sm:border-r-0 sm:last:border-r mb-px sm:mb-0 hover:bg-slate-50 transition-colors">
-                  <span className="block text-[9px] font-mono text-slate-300 mb-1 tracking-widest">0{i + 1}</span>
-                  <span className="block font-semibold text-sm text-[#0a1628] mb-1">{label}</span>
-                  <span className="block text-xs text-slate-400 leading-relaxed">{desc}</span>
-                </div>
-                {i < PIPELINE.length - 1 && (
-                  <div className="hidden sm:flex absolute right-0 top-1/2 -translate-y-1/2 translate-x-[1px] z-10 bg-[#faf9f7] px-0.5">
-                    <ChevronRight className="w-3 h-3 text-slate-300" />
-                  </div>
-                )}
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Features ─────────────────────────────────────────────────── */}
-      <section className="px-6 pt-4 pb-20 bg-white border-t border-slate-200">
-        <div className="max-w-5xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10 pt-12"
-          >
-            <h2 className="text-2xl font-bold text-[#0a1628] mb-2">What's under the hood</h2>
-            <p className="text-sm text-slate-400">Production-grade RAG + multi-agent reasoning, built for financial research at scale</p>
-          </motion.div>
-
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, margin: '-60px' }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
-          >
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <motion.div
-                key={title}
-                variants={fadeUp}
-                className="bg-[#faf9f7] border border-slate-200 rounded-xl p-5 hover:border-indigo-200 hover:shadow-sm transition-all"
-              >
-                <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center mb-3">
-                  <Icon className="w-4 h-4 text-indigo-600" strokeWidth={1.75} />
-                </div>
-                <h3 className="font-semibold text-sm text-[#0a1628] mb-1">{title}</h3>
-                <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
+      <SectionTransition from="#f3f4f6" to="white" />
 
       {/* ── CTA ──────────────────────────────────────────────────────── */}
-      <section className="px-6 py-20 bg-[#0a1628] text-white relative overflow-hidden">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[200px] rounded-full bg-indigo-600 opacity-10 blur-3xl" />
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          className="max-w-2xl mx-auto text-center relative"
-        >
-          <h2 className="text-2xl font-bold mb-3">Ready to research?</h2>
-          <p className="text-slate-400 text-sm mb-7 max-w-md mx-auto leading-relaxed">
-            Instant access — no setup required. Sign up to save sessions and get persistent research history across devices.
+      <motion.section
+        initial={{ opacity: 0, y: 16 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: false }}
+        className="px-6 py-28 bg-white"
+      >
+        <div className="max-w-3xl mx-auto text-center">
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-4 tracking-tight">Ask your first question.</h2>
+          <p className="text-neutral-600 text-base mb-9 max-w-md mx-auto leading-relaxed">
+            No setup. No credit card. Sign in to save research history across devices, or jump straight in as a guest.
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <button
               onClick={() => navigate('/chat')}
-              className="inline-flex items-center gap-2 bg-white text-[#0a1628] hover:bg-slate-100 font-semibold px-8 py-3 rounded-xl transition-colors shadow-sm"
+              className="inline-flex items-center gap-2 bg-black hover:bg-neutral-800 text-white font-semibold px-8 py-3.5 rounded-xl transition-colors"
             >
               Open AlphaLens <ArrowRight className="w-4 h-4" />
             </button>
             {AUTH_AVAILABLE && !isSignedIn && (
               <button
-                onClick={openSignUp}
-                className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-8 py-3 rounded-xl transition-colors"
+                onClick={() => setShowAuth(true)}
+                className="inline-flex items-center gap-2 bg-white border border-black hover:bg-black hover:text-white text-black font-semibold px-8 py-3.5 rounded-xl transition-colors"
               >
-                <UserPlus className="w-4 h-4" /> Create Free Account
+                Sign In
               </button>
             )}
           </div>
-        </motion.div>
-      </section>
+        </div>
+      </motion.section>
+
+      {/* ── Scroll-to-top button ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="fixed bottom-8 right-8 z-40 w-11 h-11 bg-black text-white rounded-full shadow-lg hover:bg-neutral-800 hover:shadow-xl transition-all flex items-center justify-center"
+            title="Back to top"
+          >
+            <ArrowUp className="w-4 h-4" />
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* ── Footer ───────────────────────────────────────────────────── */}
-      <footer className="border-t border-slate-200 bg-white px-8 py-6">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+      <footer className="border-t border-black/10 bg-white px-6 md:px-10 py-8">
+        <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-neutral-500">
           <div className="flex items-center gap-3">
-            <div className="w-5 h-5 bg-[#0a1628] rounded flex items-center justify-center text-white font-black text-[10px]">α</div>
+            <div className="w-5 h-5 bg-black rounded flex items-center justify-center text-white font-black text-[10px]">α</div>
             <span>© 2025 AlphaLens · Built by Swapnil Padhi · MIT License</span>
           </div>
-          <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 text-center">
-            <span className="text-amber-600 font-medium">AI responses may contain errors — verify before acting on financial data</span>
+          <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center">
+            <span className="text-black font-medium">AI may make errors — verify before acting on financial data</span>
             <div className="flex items-center gap-3">
-              <a href="https://github.com/swapnil18800/alphalens" target="_blank" rel="noreferrer" className="hover:text-[#0a1628] transition-colors">GitHub</a>
-              <button onClick={() => setShowAbout(true)} className="hover:text-[#0a1628] transition-colors">About</button>
+              <a href="https://github.com/swapnil18800/alphalens" target="_blank" rel="noreferrer" className="hover:text-black transition-colors">GitHub</a>
+              <button onClick={() => setShowAbout(true)} className="hover:text-black transition-colors">About</button>
             </div>
           </div>
         </div>

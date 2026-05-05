@@ -3,6 +3,9 @@ import { AUTH_AVAILABLE } from '../lib/config'
 
 export interface AuthUser {
   firstName?: string | null
+  lastName?: string | null
+  fullName?: string | null
+  username?: string | null
   imageUrl?: string
   emailAddresses?: { emailAddress: string }[]
 }
