@@ -22,6 +22,7 @@ function AuthModalInner({ onClose }: { onClose: () => void }) {
   const { signIn } = useSignIn()
 
   const handleGoogle = async () => {
+    if (!signIn) return
     try {
       await signIn.authenticateWithRedirect({
         strategy: 'oauth_google',
