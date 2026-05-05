@@ -12,9 +12,9 @@ Improvements over v1:
   - Reads tickers from data/tickers.txt by default
 
 Usage:
-    python scripts/ingestion/ingest_sec.py --start-year 2023 --end-year 2025 --replace
-    python scripts/ingestion/ingest_sec.py --tickers NVDA AAPL MSFT --start-year 2023 --end-year 2025 --replace
-    python scripts/ingestion/ingest_sec.py --all --start-year 2023 --end-year 2025 --replace
+    python db/ingestion/ingest_sec.py --start-year 2023 --end-year 2025 --replace
+    python db/ingestion/ingest_sec.py --tickers NVDA AAPL MSFT --start-year 2023 --end-year 2025 --replace
+    python db/ingestion/ingest_sec.py --all --start-year 2023 --end-year 2025 --replace
 """
 import argparse
 import asyncio
@@ -409,7 +409,7 @@ async def ingest(tickers: List[str], lookback_years: int = 3, replace: bool = Fa
     if not url:
         raise RuntimeError("DATABASE_URL not set")
 
-    conn = await asyncpg.connect(url)
+    conn = await asyncpg.connect(url, command_timeout=60, statement_cache_size=0)
     year_range = f"{start_year}-{end_year}" if start_year else f"last {lookback_years} years"
     logger.info(f"Ingesting 10-K for {len(tickers)} tickers, {year_range}\n")
 

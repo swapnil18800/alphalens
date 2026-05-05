@@ -26,17 +26,18 @@ app = FastAPI(
 setup_middleware(app)
 setup_routes(app)
 
-# Serve built React frontend from frontend/dist (disabled in dev, use Vite at :5175 instead)
-# Uncomment when building for production
-# _dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
-# if os.path.isdir(_dist):
-#     from fastapi.responses import FileResponse
-#     from fastapi.staticfiles import StaticFiles
-#
-#     app.mount("/assets", StaticFiles(directory=os.path.join(_dist, "assets")), name="assets")
-#
-#     @app.get("/{full_path:path}", include_in_schema=False)
-#     async def serve_spa(full_path: str):
-#         """Serve React SPA for all non-API routes."""
-#         index = os.path.join(_dist, "index.html")
-#         return FileResponse(index)
+# Serve built React SPA from frontend/dist in production.
+# In dev the Vite dev server runs at :5175 (proxy via vite.config.ts).
+_dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "dist")
+if os.path.isdir(_dist):
+    from fastapi.responses import FileResponse
+
+    # Mount Vite's hashed asset bundles (JS/CSS/images)
+    _assets = os.path.join(_dist, "assets")
+    if os.path.isdir(_assets):
+        app.mount("/assets", StaticFiles(directory=_assets), name="static-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        """Catch-all: serve index.html for all non-API routes (React Router handles them)."""
+        return FileResponse(os.path.join(_dist, "index.html"))

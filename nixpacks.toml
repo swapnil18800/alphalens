@@ -1,0 +1,10 @@
+# Nixpacks configuration for Railway deployment.
+# Ensures both Python 3.12 and Node.js 20 are available:
+#   - Python: install requirements.txt → run uvicorn
+#   - Node.js: cd frontend && npm ci && npm run build (via railway.toml buildCommand)
+
+[phases.setup]
+nixPkgs = ["python312", "nodejs_20", "nodePackages.npm"]
+
+[phases.install]
+cmds = ["pip install -r requirements.txt"]

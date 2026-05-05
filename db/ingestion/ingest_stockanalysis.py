@@ -5,9 +5,9 @@ Scrapes real earnings call transcripts from stockanalysis.com (free, no API key 
 Covers 24 tickers × ~12-16 quarterly earnings calls each = ~300 transcripts.
 
 Usage:
-    python scripts/ingestion/ingest_stockanalysis.py --replace
-    python scripts/ingestion/ingest_stockanalysis.py --tickers NVDA AAPL MSFT --replace
-    python scripts/ingestion/ingest_stockanalysis.py --years 2023 2024 2025 --replace
+    python db/ingestion/ingest_stockanalysis.py --replace
+    python db/ingestion/ingest_stockanalysis.py --tickers NVDA AAPL MSFT --replace
+    python db/ingestion/ingest_stockanalysis.py --years 2023 2024 2025 --replace
 """
 import argparse
 import asyncio
@@ -241,7 +241,7 @@ async def main(args):
     logger.info("Loading sentence transformer model...")
     model = SentenceTransformer("all-MiniLM-L6-v2")
 
-    conn = await asyncpg.connect(db_url)
+    conn = await asyncpg.connect(db_url, command_timeout=60, statement_cache_size=0)
     try:
         total_chunks = 0
         total_transcripts = 0

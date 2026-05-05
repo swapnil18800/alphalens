@@ -16,6 +16,8 @@ CREATE TABLE IF NOT EXISTS ten_k_chunks (
     section      TEXT,                       -- e.g. "Risk Factors", "MD&A"
     chunk_text   TEXT        NOT NULL,
     embedding    vector(384),                -- all-MiniLM-L6-v2
+    chunk_type   TEXT        DEFAULT 'prose',  -- 'prose' or 'table'
+    citation     TEXT,                       -- Citation string for retrieval
     created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 

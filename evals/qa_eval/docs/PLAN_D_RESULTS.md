@@ -80,11 +80,18 @@ Re-ran v3 against current code. Result: 0.797 (exceeded target ≥0.78).
 - Reason: RESPONSE_PROMPT caps answers at ~500 words ≈ 700 tokens. 1200 was wasteful
   headroom. ~40% output token cost reduction with no observed quality loss.
 
+**D4: Round-robin interleaving in `_format_chunks` for cross-company queries**
+- File: `agent/rag/response_generator.py`
+- When ≥2 distinct tickers present in retrieved chunks: groups chunks by ticker (sorted by CE
+  score within each group), then round-robins across groups before applying char budget.
+- When only 1 ticker: falls back to original pure CE-score sort.
+- Reason: Global CE sort can crowd out minority tickers in cross-company comparison questions.
+  RC2 (`cross_company_reasoning` at 0.30–0.60) is the main beneficiary.
+- No state changes, no new parameters — self-contained within `_format_chunks`.
+
 ### Fixes NOT Applied
 - **D3 (asymmetric year filter)**: Skipped — CE rerank handles most precision-year cases;
-  the `run_parallel_search` signature change adds risk on last day.
-- **D4 (round-robin _format_chunks)**: Skipped — would help v4 cross_company but adds
-  ~30 lines across 4 files; left as future work (RC2 unresolved).
+  the `run_parallel_search` signature change adds risk. Left as future work.
 
 ## Token Cost (Plan D evals)
 | Set | Input tokens | Output tokens | Cost USD |
@@ -108,13 +115,14 @@ scores.
 
 ## What Remains Unresolved
 
-- **RC2: Cross-company context imbalance** — `_format_chunks` global CE sort can crowd out
-  minority tickers. v4 `cross_company_reasoning` at 0.30 (Plan C) is the symptom.
-  Fix D4 (round-robin interleaving) is designed for this but not yet applied.
+- **RC2: Cross-company context imbalance** — D4 (round-robin interleaving in `_format_chunks`)
+  is applied. Effect on v4 `cross_company_reasoning` unconfirmed pending Railway DB recovery
+  and v4 re-eval.
 - **v5 hard questions** — Deliberately not re-run. v5 is a stress test; partial credit (0.382)
   is acceptable. Do not overfit to v5 phrasing.
 
 ## Decision
 
-**Ship current code.** v2 ≥0.73 ✅, v3 ≥0.78 ✅. Both baselines restored or exceeded.
-D1+D2+D5 applied (subtractive, lower risk, lower cost). No further experimentation needed.
+**v2/v3 shipped.** D1+D2+D4+D5 applied. v4 eval pending Railway DB recovery and migration
+to Supabase. Run `python tests/db/test_railway.py` to check when Railway is back up, then
+follow migration steps in HANDOVER.md.

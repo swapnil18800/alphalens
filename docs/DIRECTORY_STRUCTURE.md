@@ -49,21 +49,25 @@ alphalens/
 │       ├── manager.py              # ConnectionManager: connect/disconnect/broadcast
 │       └── routes.py               # @router.websocket("/ws")
 │
-├── db/                             # Database schema & migrations
-│   ├── schema.sql                  # All CREATE TABLE + pgvector extension setup
-│   └── migrations/                 # (future; schema applied on startup)
+├── db/                             # Database schema, migrations, ingestion scripts
+│   ├── schema.sql                  # All CREATE TABLE + pgvector extension + ivfflat indexes
+│   ├── setup_db.py                 # Apply schema.sql to Supabase: python db/setup_db.py
+│   ├── setup_pgvector_supabase.py  # Enable pgvector + create indexes (run if schema already exists)
+│   ├── generate_data_audit.py      # Query DB stats and write docs/DATA_AUDIT_SUPABASE_INGESTION_2026.md
+│   ├── migrations/                 # (future; schema applied on startup)
+│   └── ingestion/
+│       ├── ingest_sec.py           # SEC EDGAR 10-K chunks + embeddings → ten_k_chunks
+│       ├── ingest_stockanalysis.py # StockAnalysis earnings transcripts → transcript_chunks
+│       ├── ingest_yfinance.py      # yfinance earnings summaries → transcript_chunks
+│       ├── tickers.txt             # Default ticker list for ingest_sec.py
+│       └── logs/                   # Auto-created per-run logs (sec_10k/, transcripts_stockanalysis/)
 │
-├── scripts/                        # Data ingestion & utility scripts
-│   ├── ingestion/
-│   │   ├── ingest_sec.py           # SEC EDGAR 10-K chunks + embeddings → ten_k_chunks table
-│   │   ├── ingest_yfinance.py      # yfinance earnings summaries + embeddings → transcript_chunks table
-│   │   ├── ingest_stockanalysis.py # StockAnalysis financial data ingestion
-│   │   ├── tickers.txt             # Ticker list for ingestion scripts
-│   │   └── __init__.py
+├── scripts/                        # Utility scripts (not DB-related)
 │   ├── eval/
-│   │   ├── run_ragas.py            # Lightweight standalone RAGAS runner (see evals/qa_eval/ for full suite)
+│   │   ├── run_ragas.py            # Lightweight standalone RAGAS runner
 │   │   └── __init__.py
-│   └── setup_db.py                 # Database setup script
+│   ├── download_logos.py
+│   └── download_logos_colorful.py
 │
 ├── evals/                          # Evaluation harness & ground truth generation
 │   └── qa_eval/
@@ -171,25 +175,16 @@ alphalens/
 4. Tokens streamed via `_token_callback` → `handler.py` → WebSocket client
 5. Token usage posted to LangSmith trace (if `LANGCHAIN_TRACING_V2=true`)
 
-### Data Ingestion Pipeline (`scripts/ingestion/`)
+### Data Ingestion Pipeline (`db/ingestion/`)
 
-**1. SEC 10-K Ingestion**
-```bash
-python scripts/ingestion/ingest_sec.py --start-year 2023 --end-year 2025 --replace
-```
-- Downloads SEC 10-K filings (FY2023–FY2025)
-- Chunks: 1400-char segments with 200-char overlap
-- Embeds with **all-MiniLM-L6-v2** (384-dim)
-- Stores in `ten_k_chunks` table (pgvector indexed)
+See [docs/DATA_INGESTION.md](DATA_INGESTION.md) for full guide.
 
-**2. yfinance Earnings Transcripts Ingestion**
 ```bash
-python scripts/ingestion/ingest_yfinance.py --start-quarter "Q1 2023" --end-quarter "Q4 2025" --replace
+python db/setup_db.py                                                    # 1. Apply schema + pgvector
+python db/ingestion/ingest_sec.py --start-year 2023 --end-year 2026 --replace        # 2. SEC 10-K
+python db/ingestion/ingest_stockanalysis.py --years 2023 2024 2025 2026 --replace    # 3. Transcripts
+python db/generate_data_audit.py                                         # 4. Audit report
 ```
-- Fetches earnings summaries from yfinance (free, no API key)
-- Each quarter = 1 chunk with revenue, margins, EPS, key metrics
-- Embeds with **all-MiniLM-L6-v2** (384-dim)
-- Stores in `transcript_chunks` table (pgvector indexed)
 
 ### Evaluation Workflow (`evals/qa_eval/`)
 

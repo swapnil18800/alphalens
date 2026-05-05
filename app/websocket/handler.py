@@ -141,7 +141,7 @@ async def _save_turn(session_id: str, question: str, answer: str, meta: dict):
         logger.warning(f"[ws] save_turn failed: {e}")
 
 
-async def handle_connection(ws: WebSocket, session_id: Optional[str] = None):
+async def handle_connection(ws: WebSocket, session_id: Optional[str] = None, user_id: str = "anonymous"):
     sid = session_id or str(uuid.uuid4())
     await manager.connect(sid, ws)
 
@@ -182,8 +182,11 @@ async def handle_connection(ws: WebSocket, session_id: Optional[str] = None):
             if _current_task and not _current_task.done():
                 _current_task.cancel()
 
-            user_id     = msg.get("user_id", "anonymous")
-            use_session = msg.get("session_id", sid)
+            # user_id is set at connection-time via Clerk JWT verification;
+            # fall back to anonymous only if not already authenticated
+            conn_user_id = msg.get("user_id") if user_id == "anonymous" else user_id
+            user_id      = conn_user_id or "anonymous"
+            use_session  = msg.get("session_id", sid)
             web_search  = bool(msg.get("web_search", False))
 
             await manager.send(sid, {"type": "ack", "session_id": use_session})

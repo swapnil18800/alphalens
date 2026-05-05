@@ -15,13 +15,22 @@ ANON_USER = {"id": "anonymous", "email": "anon@alphalens.ai", "name": "Guest"}
 async def _verify_clerk_token(token: str) -> dict:
     """Decode and verify a Clerk JWT. Returns user payload."""
     try:
+        import base64
         import jwt
         from jwt import PyJWKClient
 
-        # Clerk JWKS URL derived from publishable key domain
+        # Clerk JWKS URL: publishable key format is pk_test_<base64(domain$)>
+        # e.g. pk_test_cHJlc2VudC1uZXd0LTkuY2xlcmsuYWNjb3VudHMuZGV2JA
+        # → base64 decode → "present-newt-9.clerk.accounts.dev$"
         pk = settings.CLERK_PUBLISHABLE_KEY or ""
-        # pk_test_xxx.xxx → frontend API domain
-        domain = pk.split("_")[2] if "_" in pk else ""
+        parts = pk.split("_", 2)  # ["pk", "test"|"live", "<base64>"]
+        if len(parts) == 3:
+            encoded = parts[2]
+            # Add padding so len is a multiple of 4
+            padded = encoded + "=" * ((4 - len(encoded) % 4) % 4)
+            domain = base64.b64decode(padded).decode("utf-8").rstrip("$")
+        else:
+            domain = ""
         jwks_url = f"https://{domain}/.well-known/jwks.json"
 
         jwks_client = PyJWKClient(jwks_url, cache_keys=True)

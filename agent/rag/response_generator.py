@@ -23,8 +23,24 @@ def _is_table_chunk(c: Dict) -> bool:
 def _format_chunks(chunks: List[Dict], max_chars: int = 4000) -> str:
     if not chunks:
         return "No relevant context found."
-    # Sort by CE score descending — CE now scores full text so score is reliable
-    sorted_chunks = sorted(chunks, key=lambda c: -(c.get("score") or 0))
+
+    # For cross-company chunks (≥2 distinct tickers), interleave round-robin by ticker
+    # so one ticker's high-CE scores don't crowd out others before the max_chars budget runs out.
+    tickers_present = [c.get("ticker", "") for c in chunks if c.get("ticker")]
+    if len(set(tickers_present)) >= 2:
+        from collections import defaultdict
+        ticker_groups: Dict[str, List] = defaultdict(list)
+        for c in sorted(chunks, key=lambda c: -(c.get("score") or 0)):
+            ticker_groups[c.get("ticker", "")].append(c)
+        sorted_chunks = []
+        max_len = max(len(v) for v in ticker_groups.values())
+        for i in range(max_len):
+            for k in sorted(ticker_groups.keys()):
+                if i < len(ticker_groups[k]):
+                    sorted_chunks.append(ticker_groups[k][i])
+    else:
+        sorted_chunks = sorted(chunks, key=lambda c: -(c.get("score") or 0))
+
     parts = []
     total = 0
     for c in sorted_chunks:

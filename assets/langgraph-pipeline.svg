@@ -1,0 +1,160 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+    <marker id="arr-red" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#ef4444"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f97316"/>
+    </marker>
+    <filter id="sh" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000018"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="560" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="450" y="34" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">LangGraph Research Pipeline</text>
+  <text x="450" y="52" text-anchor="middle" font-size="11" fill="#64748b">agent/graph/ · ResearchState TypedDict · Self-correcting with up to 2 retries</text>
+  <line x1="40" y1="62" x2="860" y2="62" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- ── START ── -->
+  <ellipse cx="130" cy="105" rx="65" ry="28" fill="#1e293b" filter="url(#sh)"/>
+  <text x="130" y="100" text-anchor="middle" font-size="11" fill="white" font-weight="600">User Question</text>
+  <text x="130" y="115" text-anchor="middle" font-size="9" fill="#94a3b8">via WebSocket /ws</text>
+
+  <!-- Arrow: START → plan_search -->
+  <line x1="195" y1="105" x2="253" y2="105" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- ── NODE: plan_search ── -->
+  <rect x="253" y="78" width="140" height="54" rx="8" fill="#4f46e5" filter="url(#sh)"/>
+  <text x="323" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="white">plan_search</text>
+  <text x="323" y="115" text-anchor="middle" font-size="9" fill="#c7d2fe">Extract tickers · scope check</text>
+  <text x="323" y="127" text-anchor="middle" font-size="9" fill="#c7d2fe">sub-questions · web_search flag</text>
+
+  <!-- Arrow: plan_search → finalize_early (out of scope) -->
+  <line x1="323" y1="78" x2="323" y2="48" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="323" y1="48" x2="730" y2="48" stroke="#64748b" stroke-width="1.5"/>
+  <line x1="730" y1="48" x2="730" y2="78" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="465" y="36" width="110" height="20" rx="4" fill="#f1f5f9"/>
+  <text x="520" y="50" text-anchor="middle" font-size="9" fill="#64748b">out of scope</text>
+
+  <!-- Arrow: plan_search → retrieve_context -->
+  <line x1="393" y1="105" x2="453" y2="105" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="400" y="92" width="46" height="16" rx="3" fill="#f1f5f9"/>
+  <text x="423" y="103" text-anchor="middle" font-size="8" fill="#374151">in scope</text>
+
+  <!-- ── NODE: retrieve_context ── -->
+  <rect x="453" y="78" width="140" height="54" rx="8" fill="#059669" filter="url(#sh)"/>
+  <text x="523" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="white">retrieve_context</text>
+  <text x="523" y="115" text-anchor="middle" font-size="9" fill="#a7f3d0">pgvector ANN + BM25</text>
+  <text x="523" y="127" text-anchor="middle" font-size="9" fill="#a7f3d0">RRF merge → rerank → top-K</text>
+
+  <!-- Arrow: retrieve → generate -->
+  <line x1="593" y1="105" x2="653" y2="105" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- ── NODE: generate_answer ── -->
+  <rect x="653" y="78" width="140" height="54" rx="8" fill="#d97706" filter="url(#sh)"/>
+  <text x="723" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="white">generate_answer</text>
+  <text x="723" y="115" text-anchor="middle" font-size="9" fill="#fef3c7">Build context window</text>
+  <text x="723" y="127" text-anchor="middle" font-size="9" fill="#fef3c7">LLM stream via Factory</text>
+
+  <!-- Arrow: generate → evaluate -->
+  <line x1="723" y1="132" x2="723" y2="195" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- ── NODE: evaluate_quality ── -->
+  <rect x="653" y="195" width="140" height="54" rx="8" fill="#dc2626" filter="url(#sh)"/>
+  <text x="723" y="217" text-anchor="middle" font-size="12" font-weight="700" fill="white">evaluate_quality</text>
+  <text x="723" y="232" text-anchor="middle" font-size="9" fill="#fecaca">Heuristic score + LLM judge</text>
+  <text x="723" y="244" text-anchor="middle" font-size="9" fill="#fecaca">threshold: 0.65 · max iter: 2</text>
+
+  <!-- Arrow: evaluate → finalize (score >= 0.65) -->
+  <line x1="653" y1="222" x2="493" y2="222" stroke="#10b981" stroke-width="1.8" marker-end="url(#arr-green)"/>
+  <rect x="550" y="209" width="96" height="16" rx="3" fill="#d1fae5"/>
+  <text x="598" y="220" text-anchor="middle" font-size="8" fill="#065f46">score ≥ 0.65 OR iter ≥ 2</text>
+
+  <!-- ── NODE: finalize ── -->
+  <rect x="353" y="195" width="140" height="54" rx="8" fill="#7c3aed" filter="url(#sh)"/>
+  <text x="423" y="217" text-anchor="middle" font-size="12" font-weight="700" fill="white">finalize</text>
+  <text x="423" y="232" text-anchor="middle" font-size="9" fill="#ede9fe">Format answer + citations</text>
+  <text x="423" y="244" text-anchor="middle" font-size="9" fill="#ede9fe">Confidence badge · metadata</text>
+
+  <!-- Arrow: evaluate → rewrite (score < 0.65) -->
+  <line x1="723" y1="249" x2="723" y2="315" stroke="#ef4444" stroke-width="1.8" marker-end="url(#arr-red)"/>
+  <rect x="728" y="275" width="70" height="16" rx="3" fill="#fee2e2"/>
+  <text x="763" y="286" text-anchor="middle" font-size="8" fill="#991b1b">score &lt; 0.65</text>
+
+  <!-- ── NODE: rewrite_query ── -->
+  <rect x="653" y="315" width="140" height="54" rx="8" fill="#ea580c" filter="url(#sh)"/>
+  <text x="723" y="337" text-anchor="middle" font-size="12" font-weight="700" fill="white">rewrite_query</text>
+  <text x="723" y="352" text-anchor="middle" font-size="9" fill="#fed7aa">Refine question from gaps</text>
+  <text x="723" y="364" text-anchor="middle" font-size="9" fill="#fed7aa">iter++ · new search terms</text>
+
+  <!-- Arrow: rewrite → retrieve (retry loop) -->
+  <path d="M 793 342 C 850 342 850 105 593 105" stroke="#f97316" stroke-width="1.8" fill="none" marker-end="url(#arr-orange)"/>
+  <rect x="820" y="215" width="42" height="16" rx="3" fill="#fff7ed"/>
+  <text x="841" y="226" text-anchor="middle" font-size="8" fill="#c2410c">retry</text>
+
+  <!-- Arrow: finalize → output -->
+  <line x1="353" y1="222" x2="230" y2="222" stroke="#7c3aed" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- ── NODE: finalize_early ── -->
+  <rect x="660" y="78" width="140" height="54" rx="8" fill="#db2777" filter="url(#sh)" visibility="hidden"/>
+
+  <!-- ── FINAL OUTPUT ── -->
+  <rect x="65" y="196" width="165" height="54" rx="8" fill="#1e293b" filter="url(#sh)"/>
+  <text x="147" y="218" text-anchor="middle" font-size="11" font-weight="600" fill="white">Final Answer</text>
+  <text x="147" y="233" text-anchor="middle" font-size="9" fill="#94a3b8">Streaming tokens · citations</text>
+  <text x="147" y="245" text-anchor="middle" font-size="9" fill="#94a3b8">confidence score · metadata</text>
+
+  <!-- ── finalize_early node and output ── -->
+  <rect x="660" y="78" width="140" height="54" rx="8" fill="#db2777" filter="url(#sh)"/>
+  <!-- wait, finalize_early is already drawn at x=660... let me reposition -->
+
+  <!-- Out-of-scope output -->
+  <rect x="65" y="90" width="165" height="42" rx="8" fill="#374151" filter="url(#sh)"/>
+  <text x="147" y="109" text-anchor="middle" font-size="11" font-weight="600" fill="white">Out-of-scope Reply</text>
+  <text x="147" y="124" text-anchor="middle" font-size="9" fill="#9ca3af">"I only cover public equities"</text>
+
+  <!-- Arrow finalize_early → out-of-scope output -->
+  <!-- finalize_early is at top path, linking 730 y=48 down to y=78 -->
+  <!-- Then arrow from it to left -->
+  <line x1="660" y1="105" x2="230" y2="111" stroke="#db2777" stroke-width="1.5" marker-end="url(#arr)"/>
+
+  <!-- ── STATE FIELDS PANEL ── -->
+  <rect x="40" y="295" width="340" height="230" rx="8" fill="white" stroke="#e2e8f0" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="210" y="317" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">ResearchState TypedDict</text>
+  <text x="210" y="331" text-anchor="middle" font-size="9" fill="#64748b">agent/graph/state.py</text>
+  <line x1="52" y1="338" x2="368" y2="338" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="55" y="354" font-size="9" fill="#4f46e5" font-weight="600">Input</text>
+  <text x="55" y="368" font-size="9" fill="#374151">  question · session_id · iteration · use_web_search</text>
+  <text x="55" y="385" font-size="9" fill="#059669" font-weight="600">Planning</text>
+  <text x="55" y="399" font-size="9" fill="#374151">  query_plan · search_queries · tickers · is_in_scope</text>
+  <text x="55" y="416" font-size="9" fill="#d97706" font-weight="600">Retrieval</text>
+  <text x="55" y="430" font-size="9" fill="#374151">  retrieved_chunks · web_results · search_cache_hit</text>
+  <text x="55" y="447" font-size="9" fill="#dc2626" font-weight="600">Generation</text>
+  <text x="55" y="461" font-size="9" fill="#374151">  raw_answer · formatted_answer · citations · token_cb</text>
+  <text x="55" y="478" font-size="9" fill="#7c3aed" font-weight="600">Evaluation</text>
+  <text x="55" y="492" font-size="9" fill="#374151">  quality_score · confidence_label · eval_reasoning</text>
+  <text x="55" y="509" font-size="9" fill="#64748b" font-weight="600">Callbacks</text>
+  <text x="55" y="523" font-size="9" fill="#374151">  _status_callback · _token_callback (async emit)</text>
+
+  <!-- ── CONDITIONAL ROUTING PANEL ── -->
+  <rect x="400" y="390" width="390" height="148" rx="8" fill="white" stroke="#e2e8f0" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="595" y="412" text-anchor="middle" font-size="12" font-weight="700" fill="#0f172a">Conditional Routing (edges.py)</text>
+  <line x1="412" y1="420" x2="778" y2="420" stroke="#e2e8f0" stroke-width="1"/>
+  <text x="415" y="437" font-size="10" font-weight="600" fill="#4f46e5">route_after_analysis(state)</text>
+  <text x="415" y="451" font-size="9" fill="#374151">  is_in_scope=False  →  finalize_early</text>
+  <text x="415" y="465" font-size="9" fill="#374151">  is_in_scope=True   →  retrieve_context</text>
+  <text x="415" y="482" font-size="10" font-weight="600" fill="#dc2626">route_after_evaluation(state)</text>
+  <text x="415" y="496" font-size="9" fill="#374151">  score ≥ 0.65 OR iteration ≥ 2  →  finalize</text>
+  <text x="415" y="510" font-size="9" fill="#374151">  score &lt; 0.65 AND iteration &lt; 2  →  rewrite_query</text>
+  <text x="415" y="527" font-size="9" fill="#64748b">  (rewrite → retrieve_context → generate → evaluate loop)</text>
+</svg>

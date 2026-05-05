@@ -6,6 +6,7 @@ import ChatMessage from '../components/ChatMessage'
 import Sidebar from '../components/Sidebar'
 import AboutModal from '../components/AboutModal'
 import { WS_URL } from '../lib/config'
+import { useAuthStatus } from '../hooks/useAuthStatus'
 import {
   generateMessageId,
   type ChatMessage as ChatMessageType,
@@ -29,6 +30,8 @@ const EXAMPLE_QUERIES = [
 const TICKER_LINE = 'AAPL · META · NFLX · GOOGL · MSFT · NVDA · TSLA · IBM · CSCO · SNOW + 17 more'
 
 export default function ChatPage() {
+  const { getToken } = useAuthStatus()
+
   const [messages, setMessages]             = useState<ChatMessageType[]>([])
   const [sessionId, setSessionId]           = useState<string | null>(null)
   const [sidebarCollapsed, setSidebar]      = useState(false)
@@ -45,16 +48,23 @@ export default function ChatPage() {
   const assistantId  = useRef<string | null>(null)
   const sessionIdRef = useRef<string | null>(null)  // mirrors sessionId state
   const webSearchRef = useRef<boolean>(false)        // mirrors webSearch state
+  // Stable ref to getToken — lets connect() (deps=[]) call the latest version
+  const getTokenRef  = useRef(getToken)
 
-  // Keep refs in sync with state
+  // Keep refs in sync with state / latest callbacks
   useEffect(() => { sessionIdRef.current = sessionId }, [sessionId])
   useEffect(() => { webSearchRef.current = webSearch }, [webSearch])
+  useEffect(() => { getTokenRef.current = getToken }, [getToken])
 
   // ── WebSocket lifecycle ──────────────────────────────────────────────────
 
-  const connect = useCallback((sid?: string) => {
+  const connect = useCallback(async (sid?: string) => {
     ws.current?.close()
-    const url = sid ? `${WS_URL}?session_id=${sid}` : WS_URL
+    // Append Clerk JWT (if available) so backend can identify the user
+    let token: string | null = null
+    try { token = await getTokenRef.current?.() ?? null } catch { /* anonymous */ }
+    const base = sid ? `${WS_URL}?session_id=${encodeURIComponent(sid)}` : WS_URL
+    const url  = token ? `${base}${sid ? '&' : '?'}token=${encodeURIComponent(token)}` : base
     const socket = new WebSocket(url)
 
     socket.onopen = () => {

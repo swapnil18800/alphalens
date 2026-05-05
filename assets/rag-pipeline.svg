@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 480" font-family="'Segoe UI', Arial, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b"/>
+    </marker>
+    <marker id="arr-blue" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6"/>
+    </marker>
+    <marker id="arr-green" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#10b981"/>
+    </marker>
+    <marker id="arr-orange" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#f59e0b"/>
+    </marker>
+    <marker id="arr-purple" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6"/>
+    </marker>
+    <filter id="sh" x="-8%" y="-8%" width="116%" height="116%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#00000018"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="480" fill="#f8fafc"/>
+
+  <!-- Title -->
+  <text x="500" y="34" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">RAG Hybrid Search Pipeline</text>
+  <text x="500" y="52" text-anchor="middle" font-size="11" fill="#64748b">agent/rag/ · pgvector ANN + BM25 Okapi → RRF fusion → Cross-encoder rerank · Semantic cache</text>
+  <line x1="40" y1="62" x2="960" y2="62" stroke="#e2e8f0" stroke-width="1.5"/>
+
+  <!-- ── QUERY INPUT ── -->
+  <rect x="28" y="90" width="110" height="58" rx="8" fill="#1e293b" filter="url(#sh)"/>
+  <text x="83" y="113" text-anchor="middle" font-size="11" font-weight="600" fill="white">Query</text>
+  <text x="83" y="128" text-anchor="middle" font-size="9" fill="#94a3b8">from plan_search</text>
+  <text x="83" y="141" text-anchor="middle" font-size="9" fill="#94a3b8">node (state)</text>
+
+  <!-- Arrow → semantic cache -->
+  <line x1="138" y1="119" x2="168" y2="119" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+
+  <!-- ── SEMANTIC CACHE CHECK ── -->
+  <rect x="168" y="90" width="130" height="58" rx="8" fill="#fce7f3" stroke="#db2777" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="233" y="111" text-anchor="middle" font-size="11" font-weight="700" fill="#831843">Semantic Cache</text>
+  <text x="233" y="126" text-anchor="middle" font-size="9" fill="#9d174d">cosine similarity</text>
+  <text x="233" y="140" text-anchor="middle" font-size="9" fill="#9d174d">threshold ≥ 0.92</text>
+
+  <!-- HIT arrow (up to return) -->
+  <line x1="233" y1="90" x2="233" y2="68" stroke="#db2777" stroke-width="1.5"/>
+  <line x1="233" y1="68" x2="900" y2="68" stroke="#db2777" stroke-width="1.5"/>
+  <line x1="900" y1="68" x2="900" y2="90" stroke="#db2777" stroke-width="1.5" marker-end="url(#arr)"/>
+  <rect x="510" y="58" width="88" height="18" rx="4" fill="#fce7f3"/>
+  <text x="554" y="71" text-anchor="middle" font-size="9" fill="#831843">CACHE HIT → return</text>
+
+  <!-- MISS arrow → embed -->
+  <line x1="298" y1="119" x2="328" y2="119" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr)"/>
+  <rect x="298" y="108" width="30" height="16" rx="3" fill="#f1f5f9"/>
+  <text x="313" y="119" text-anchor="middle" font-size="8" fill="#374151">MISS</text>
+
+  <!-- ── EMBED QUERY ── -->
+  <rect x="328" y="90" width="130" height="58" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="393" y="111" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af">Embed Query</text>
+  <text x="393" y="126" text-anchor="middle" font-size="9" fill="#3730a3">all-MiniLM-L6-v2</text>
+  <text x="393" y="141" text-anchor="middle" font-size="9" fill="#3730a3">384-dim · CPU inference</text>
+
+  <!-- Fork arrow down to two parallel paths -->
+  <line x1="458" y1="119" x2="498" y2="119" stroke="#64748b" stroke-width="1.8"/>
+  <line x1="498" y1="119" x2="498" y2="88" stroke="#64748b" stroke-width="1.8"/>
+  <line x1="498" y1="88" x2="538" y2="88" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr-blue)"/>
+  <line x1="498" y1="119" x2="498" y2="150" stroke="#64748b" stroke-width="1.8"/>
+  <line x1="498" y1="150" x2="538" y2="150" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr-green)"/>
+
+  <!-- ── pgvector ANN ── -->
+  <rect x="538" y="68" width="140" height="58" rx="8" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="608" y="89" text-anchor="middle" font-size="11" font-weight="700" fill="#064e3b">pgvector ANN</text>
+  <text x="608" y="104" text-anchor="middle" font-size="9" fill="#065f46">IVFFlat cosine similarity</text>
+  <text x="608" y="118" text-anchor="middle" font-size="9" fill="#065f46">ten_k + transcript tables</text>
+
+  <!-- ── BM25 Keyword ── -->
+  <rect x="538" y="130" width="140" height="58" rx="8" fill="#d1fae5" stroke="#10b981" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="608" y="151" text-anchor="middle" font-size="11" font-weight="700" fill="#064e3b">BM25 Okapi</text>
+  <text x="608" y="166" text-anchor="middle" font-size="9" fill="#065f46">Keyword index (in-memory)</text>
+  <text x="608" y="180" text-anchor="middle" font-size="9" fill="#065f46">Built at startup from DB</text>
+
+  <!-- Labels: top-20 -->
+  <text x="690" y="94" font-size="8" fill="#10b981">top-20</text>
+  <text x="690" y="162" font-size="8" fill="#10b981">top-20</text>
+
+  <!-- Join arrows to RRF -->
+  <line x1="678" y1="97" x2="720" y2="120" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr-orange)"/>
+  <line x1="678" y1="159" x2="720" y2="140" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr-orange)"/>
+
+  <!-- ── RRF MERGE ── -->
+  <rect x="720" y="90" width="120" height="58" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="780" y="111" text-anchor="middle" font-size="11" font-weight="700" fill="#78350f">RRF Merge</text>
+  <text x="780" y="126" text-anchor="middle" font-size="9" fill="#92400e">Reciprocal Rank Fusion</text>
+  <text x="780" y="141" text-anchor="middle" font-size="9" fill="#92400e">k=60 · top-40 combined</text>
+
+  <!-- Arrow RRF → Cross-encoder -->
+  <line x1="840" y1="119" x2="868" y2="119" stroke="#64748b" stroke-width="1.8" marker-end="url(#arr-purple)"/>
+
+  <!-- ── CROSS-ENCODER RERANK ── -->
+  <rect x="868" y="90" width="112" height="58" rx="8" fill="#ede9fe" stroke="#8b5cf6" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="924" y="111" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">Rerank</text>
+  <text x="924" y="126" text-anchor="middle" font-size="9" fill="#6d28d9">TinyBERT-L-2-v2</text>
+  <text x="924" y="141" text-anchor="middle" font-size="9" fill="#6d28d9">ms-marco · Top-K</text>
+
+  <!-- Arrow Rerank → output -->
+  <line x1="924" y1="148" x2="924" y2="200" stroke="#8b5cf6" stroke-width="1.8" marker-end="url(#arr-purple)"/>
+
+  <!-- ── CACHE MISS → write cache ── -->
+  <line x1="924" y1="200" x2="233" y2="200" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="4,3"/>
+  <line x1="233" y1="200" x2="233" y2="148" stroke="#8b5cf6" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-purple)"/>
+  <rect x="440" y="188" width="130" height="18" rx="4" fill="#ede9fe"/>
+  <text x="505" y="200" text-anchor="middle" font-size="8" fill="#6d28d9">write result to cache</text>
+
+  <!-- ── FINAL OUTPUT ── -->
+  <rect x="862" y="200" width="118" height="58" rx="8" fill="#1e293b" filter="url(#sh)"/>
+  <text x="921" y="222" text-anchor="middle" font-size="11" font-weight="600" fill="white">Top-K Chunks</text>
+  <text x="921" y="237" text-anchor="middle" font-size="9" fill="#94a3b8">→ generate_answer</text>
+  <text x="921" y="250" text-anchor="middle" font-size="9" fill="#94a3b8">context window</text>
+
+  <!-- ══ BOTTOM: Data sources legend ══ -->
+  <line x1="40" y1="282" x2="960" y2="282" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="500" y="302" text-anchor="middle" font-size="13" font-weight="700" fill="#0f172a">Data Sources &amp; Index Details</text>
+
+  <!-- ten_k_chunks table -->
+  <rect x="40" y="316" width="220" height="140" rx="8" fill="white" stroke="#f59e0b" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="40" y="316" width="220" height="30" rx="8" fill="#fef3c7"/>
+  <rect x="40" y="336" width="220" height="10" fill="#fef3c7"/>
+  <text x="150" y="336" text-anchor="middle" font-size="11" font-weight="700" fill="#78350f">ten_k_chunks</text>
+  <text x="50" y="362" font-size="9" fill="#374151">Source:  SEC EDGAR 10-K filings</text>
+  <text x="50" y="376" font-size="9" fill="#374151">Coverage: 27 companies · FY2023–25</text>
+  <text x="50" y="390" font-size="9" fill="#374151">Chunk size: 1400 chars + 200 overlap</text>
+  <text x="50" y="404" font-size="9" fill="#374151">Embedding: 384-dim float vector</text>
+  <text x="50" y="418" font-size="9" fill="#374151">Index: IVFFlat (cosine) in pgvector</text>
+  <text x="50" y="434" font-size="9" fill="#374151">Script: ingest_sec.py (2–3 hrs)</text>
+  <text x="50" y="448" font-size="9" fill="#374151">Run: --start-year 2023 --end-year 2025</text>
+
+  <!-- transcript_chunks table -->
+  <rect x="280" y="316" width="220" height="140" rx="8" fill="white" stroke="#10b981" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="280" y="316" width="220" height="30" rx="8" fill="#d1fae5"/>
+  <rect x="280" y="336" width="220" height="10" fill="#d1fae5"/>
+  <text x="390" y="336" text-anchor="middle" font-size="11" font-weight="700" fill="#064e3b">transcript_chunks</text>
+  <text x="290" y="362" font-size="9" fill="#374151">Source:  StockAnalysis (primary)</text>
+  <text x="290" y="376" font-size="9" fill="#374151">           yfinance (fallback)</text>
+  <text x="290" y="390" font-size="9" fill="#374151">Coverage: 28 companies · 5/company</text>
+  <text x="290" y="404" font-size="9" fill="#374151">Content: full earnings call text</text>
+  <text x="290" y="418" font-size="9" fill="#374151">Embedding: 384-dim float vector</text>
+  <text x="290" y="434" font-size="9" fill="#374151">Index: IVFFlat (cosine) in pgvector</text>
+  <text x="290" y="448" font-size="9" fill="#374151">Script: ingest_stockanalysis.py</text>
+
+  <!-- BM25 Index -->
+  <rect x="520" y="316" width="200" height="140" rx="8" fill="white" stroke="#3b82f6" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="520" y="316" width="200" height="30" rx="8" fill="#dbeafe"/>
+  <rect x="520" y="336" width="200" height="10" fill="#dbeafe"/>
+  <text x="620" y="336" text-anchor="middle" font-size="11" font-weight="700" fill="#1e40af">BM25 In-Memory Index</text>
+  <text x="530" y="362" font-size="9" fill="#374151">Built from: all chunk text at startup</text>
+  <text x="530" y="376" font-size="9" fill="#374151">Algorithm: Okapi BM25 (rank-bm25)</text>
+  <text x="530" y="390" font-size="9" fill="#374151">Scope: both ten_k + transcript</text>
+  <text x="530" y="404" font-size="9" fill="#374151">Returns: top-20 by TF-IDF score</text>
+  <text x="530" y="418" font-size="9" fill="#374151">Warm-up: background task on startup</text>
+  <text x="530" y="432" font-size="9" fill="#374151">Re-load: requires app restart</text>
+  <text x="530" y="448" font-size="9" fill="#374151">search_engine.py: BM25Okapi class</text>
+
+  <!-- Cross-encoder Details -->
+  <rect x="740" y="316" width="220" height="140" rx="8" fill="white" stroke="#8b5cf6" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="740" y="316" width="220" height="30" rx="8" fill="#ede9fe"/>
+  <rect x="740" y="336" width="220" height="10" fill="#ede9fe"/>
+  <text x="850" y="336" text-anchor="middle" font-size="11" font-weight="700" fill="#4c1d95">Cross-Encoder Reranker</text>
+  <text x="750" y="362" font-size="9" fill="#374151">Model: ms-marco-TinyBERT-L-2-v2</text>
+  <text x="750" y="376" font-size="9" fill="#374151">Input: (query, chunk_text) pairs</text>
+  <text x="750" y="390" font-size="9" fill="#374151">Output: relevance logit score</text>
+  <text x="750" y="404" font-size="9" fill="#374151">Pool: top-40 from RRF → top-K out</text>
+  <text x="750" y="418" font-size="9" fill="#374151">K: dynamic (≈12 chunks budget)</text>
+  <text x="750" y="432" font-size="9" fill="#374151">Runtime: CPU · warm-up at startup</text>
+  <text x="750" y="448" font-size="9" fill="#374151">Library: sentence-transformers</text>
+</svg>

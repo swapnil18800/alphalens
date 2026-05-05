@@ -30,11 +30,12 @@ scripts/ingestion/logs/
 evals/qa_eval/logs/
 
 # Eval results (gitignored EXCEPT specific benchmark runs kept for reference)
-evals/qa_eval/results/
-!evals/qa_eval/results/20260504T062826Z_fulleval/
-!evals/qa_eval/results/20260504T061511Z_fulleval/
-!evals/qa_eval/results/20260504T055714Z_fulleval/
-!evals/qa_eval/results/20260504T054910Z_smoke/
+# Note: must ignore subdirs (results/*/) not the parent dir, so negations work
+evals/qa_eval/results/*/
+!evals/qa_eval/results/20260504T062826Z_fulleval/**
+!evals/qa_eval/results/20260504T061511Z_fulleval/**
+!evals/qa_eval/results/20260504T055714Z_fulleval/**
+!evals/qa_eval/results/20260504T054910Z_smoke/**
 
 # Node
 node_modules/
@@ -56,10 +57,7 @@ Thumbs.db
 .claude/
 
 # Personal docs / internal notes
-docs/dump.txt
-docs/commands.sh
-docs/pending_work.txt
-docs/use-llm-better/
+docs/personal
 HANDOVER.md
 
 # Keep frontend dist (Railway needs it to serve frontend)
@@ -70,3 +68,11 @@ HANDOVER.md
 !data/tickers.txt
 !logs/.gitkeep
 !db/migrations/.gitkeep
+
+# db
+db/*.duckdb
+db/ingestion/logs/**
+!db/ingestion/logs/sec_10k/sec_20260505_090451.log
+!db/ingestion/logs/transcripts_stockanalysis/sa_20260505_090221.log
+!db/ingestion/logs/yfinance_transcripts/transcript_20260501_201024.log
+

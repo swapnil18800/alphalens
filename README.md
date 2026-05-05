@@ -4,47 +4,17 @@ Agentic AI equity research assistant powered by a self-correcting LangGraph pipe
 
 ## Architecture
 
+### Overall System Architecture
+
+![System Architecture](assets/architecture-overview.svg)
+
 ### LangGraph Pipeline
 
-```mermaid
-flowchart TD
-    A["User Question (WebSocket)"] --> B[plan_search]
-    B -->|out of scope| G[finalize_early]
-    B -->|ok| C[retrieve_context]
-    C --> D[generate_answer]
-    D --> E[evaluate_quality]
-    E -->|"score ≥ 0.65 OR iter ≥ 2"| F[finalize]
-    E -->|"score < 0.65"| H[rewrite_query]
-    H --> C
-    F --> I["Final Answer + Citations"]
-    G --> J["Out-of-scope Response"]
-
-    style B fill:#4a90d9,color:#fff
-    style C fill:#50b86c,color:#fff
-    style D fill:#e8a838,color:#fff
-    style E fill:#d94a68,color:#fff
-    style F fill:#7b68ee,color:#fff
-    style H fill:#ff7f50,color:#fff
-```
+![LangGraph Pipeline](assets/langgraph-pipeline.svg)
 
 ### RAG Search Pipeline
 
-```mermaid
-flowchart LR
-    Q[Query] --> Cache{Semantic Cache<br/>cosine ≥ 0.92?}
-    Cache -->|HIT| R[Return Cached]
-    Cache -->|MISS| Embed["Embed Query<br/>all-MiniLM-L6-v2"]
-    Embed --> PG["pgvector ANN<br/>(top-20)"]
-    Embed --> BM["BM25 Keyword<br/>(top-20)"]
-    PG --> RRF["RRF Merge<br/>(k=60)"]
-    BM --> RRF
-    RRF --> CE["Cross-Encoder Rerank<br/>TinyBERT-L-2-v2"]
-    CE --> TopK["Top-K Chunks"]
-
-    style Embed fill:#4a90d9,color:#fff
-    style RRF fill:#50b86c,color:#fff
-    style CE fill:#e8a838,color:#fff
-```
+![RAG Search Pipeline](assets/rag-pipeline.svg)
 
 ## Tech Stack
 
@@ -110,10 +80,10 @@ Before the RAG pipeline can answer questions, you need to populate the database:
 # SEC 10-K filings (2-3 hours for all tickers)
 python scripts/ingestion/ingest_sec.py --start-year 2023 --end-year 2025 --replace
 
-# yfinance earnings summaries (20-30 min)
+# yfinance earnings summaries (transcript summaries only, 20-30 min, to be used as fallback if stockAnalysis returns error)
 python scripts/ingestion/ingest_yfinance.py --start-quarter "Q1 2023" --end-quarter "Q4 2025" --replace
 
-# StockAnalysis financial data
+# StockAnalysis financial data (full transcripts, several hours, primary source of earning scripts, lacks speaker QA tagging though)
 python scripts/ingestion/ingest_stockanalysis.py
 ```
 
@@ -169,6 +139,7 @@ python evals/qa_eval/run_eval.py --full --input "question_v4.txt"
 - [RAG Model Pipeline](docs/RAG_MODEL_PIPELINE.md) — All models used at each stage with rationale
 - [Directory Structure](docs/DIRECTORY_STRUCTURE.md) — Complete repo layout with file purposes
 - [How to Run](docs/HOW_TO_RUN.md) — Setup and deployment guide
+- [Ingested Data](docs/DATA_AUDIT_SEC_TRANSCRIPTS.md) - Details and metrics about 10-K SEC filings and earnings call transcripts in database
 
 ## Deployment
 
