@@ -18,16 +18,23 @@ import {
   type WsEvent,
   type WsStatus,
   type WsAnswer,
+  type WsPlanComplete,
+  type WsSubqStart,
+  type WsSubqRetrieved,
+  type WsSubqComplete,
+  type WsGapFillStart,
+  type WsGapFillComplete,
+  type WsValidated,
 } from '../lib/api'
 
-// Curated from evals/qa_eval/docs/DEMO_QUESTION_GUIDE.md (top-tier reliable PASSes)
+// Curated from eval runs — single-company, single-filing queries with highest retrieval accuracy
 const EXAMPLE_QUERIES = [
-  "What did Netflix management say about subscriber growth and content strategy in FY2024 earnings calls?",
-  "Trace Amazon Web Services revenue growth and operating margin from FY2022 to FY2024 based on annual reports.",
-  "Break down Microsoft's revenue by its three reportable segments and describe each segment.",
+  "Break down Microsoft's revenue by its three reportable segments (most recent 10-K) and describe each segment.",
   "What were Broadcom's FY2024 revenue segments after completing the VMware acquisition?",
-  "What does Microsoft's most recent 10-K say about Azure growth, and what 2026 Copilot announcements have been made?",
-  "What does SpaceX's FY2024 10-K report as its total revenue and operating margin?",
+  "What are NVIDIA's reported business segments and their revenue contributions in FY2025?",
+  "What competitive advantages and moats does NVIDIA describe in its most recent 10-K filing?",
+  "According to Amazon's FY2024 10-K, what were its main business segments and their revenues?",
+  "What does Alphabet's FY2024 10-K say about Google Cloud revenue growth and AI investments?",
 ]
 
 const TICKER_LINE = 'AAPL · META · NFLX · GOOGL · MSFT · NVDA · TSLA · IBM · CSCO · SNOW + 17 more'
@@ -126,6 +133,21 @@ export default function ChatPage() {
       if (data.type === 'status') {
         const d = data as WsStatus
         const step: ReasoningStep = { step: d.step, message: d.message, chunks: d.chunks }
+        const aid = assistantId.current
+        if (aid) {
+          setMessages(prev => prev.map(m =>
+            m.id === aid ? { ...m, reasoning: [...(m.reasoning ?? []), step] } : m
+          ))
+        }
+        return
+      }
+
+      // v2 structured events — store as ReasoningStep with data payload
+      const V2_STEPS = new Set(['plan_complete','subq_start','subq_retrieved','subq_complete',
+                                'gap_fill_start','gap_fill_complete','aggregating','validated'])
+      if (V2_STEPS.has(data.type)) {
+        const { type, ...rest } = data as any
+        const step: ReasoningStep = { step: type, message: '', data: rest }
         const aid = assistantId.current
         if (aid) {
           setMessages(prev => prev.map(m =>

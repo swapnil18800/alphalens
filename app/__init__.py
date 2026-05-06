@@ -32,10 +32,11 @@ _dist = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "di
 if os.path.isdir(_dist):
     from fastapi.responses import FileResponse
 
-    # Mount Vite's hashed asset bundles (JS/CSS/images)
-    _assets = os.path.join(_dist, "assets")
-    if os.path.isdir(_assets):
-        app.mount("/assets", StaticFiles(directory=_assets), name="static-assets")
+    # Mount Vite's hashed asset bundles (JS/CSS/images) and public static dirs
+    for _subdir, _name in [("assets", "static-assets"), ("logos", "static-logos"), ("stack_logos", "static-stack-logos")]:
+        _path = os.path.join(_dist, _subdir)
+        if os.path.isdir(_path):
+            app.mount(f"/{_subdir}", StaticFiles(directory=_path), name=_name)
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):

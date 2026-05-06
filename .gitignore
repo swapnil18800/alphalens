@@ -60,8 +60,7 @@ Thumbs.db
 docs/personal
 HANDOVER.md
 
-# Keep frontend dist (Railway needs it to serve frontend)
-!frontend/dist/
+# frontend/dist is built by Railway at deploy time — do not commit
 
 # Keep data directory structure but not contents
 !data/.gitkeep
