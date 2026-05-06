@@ -2,6 +2,8 @@
 
 Agentic AI equity research assistant powered by a self-correcting LangGraph pipeline. Ask financial questions about public companies — the system retrieves context from SEC 10-K filings and earnings transcripts, generates a grounded answer with citations, evaluates its own confidence, and retries if quality is low.
 
+Website: [AlphaLens](https://web-production-3ae33.up.railway.app/)
+
 ## Architecture
 
 ### Overall System Architecture
