@@ -51,6 +51,7 @@ export interface ReasoningStep {
   step: string
   message: string
   chunks?: Array<{ ticker: string; source: string; text: string; year?: string | number; section?: string }>
+  data?: Record<string, unknown>  // v2 structured event payload
 }
 
 export interface ChatMessage {
@@ -100,7 +101,26 @@ export interface WsToken     { type: 'token';     token: string }
 export interface WsError     { type: 'error';     detail: string }
 export interface WsPong      { type: 'pong' }
 export interface WsCancelled { type: 'cancelled' }
-export type WsEvent = WsAck | WsStatus | WsToken | WsAnswer | WsError | WsPong | WsCancelled
+
+// v2 structured events
+export interface WsPlanComplete {
+  type: 'plan_complete'
+  axes: { entities: string[]; metrics: string[]; time_refs: unknown[]; intents: string[] }
+  sub_questions: Array<{ id: string; text: string; entity: string; metric: string; time_ref_label: string; preferred_source: string }>
+  needs_web: boolean
+}
+export interface WsSubqStart     { type: 'subq_start';      id: string; text: string; entity: string; metric: string; time_ref: string }
+export interface WsSubqRetrieved { type: 'subq_retrieved';  id: string; rag_chunks: number }
+export interface WsSubqComplete  { type: 'subq_complete';   id: string; no_info: boolean; confidence: number; citation_count: number }
+export interface WsGapFillStart  { type: 'gap_fill_start';  ids: string[] }
+export interface WsGapFillComplete { type: 'gap_fill_complete'; id: string; recovered: boolean }
+export interface WsAggregating   { type: 'aggregating' }
+export interface WsValidated     { type: 'validated'; score: number; missing_dimensions: string[]; refusal_appropriate: boolean }
+
+export type WsEvent =
+  | WsAck | WsStatus | WsToken | WsAnswer | WsError | WsPong | WsCancelled
+  | WsPlanComplete | WsSubqStart | WsSubqRetrieved | WsSubqComplete
+  | WsGapFillStart | WsGapFillComplete | WsAggregating | WsValidated
 
 // ── API calls ─────────────────────────────────────────────────────────────
 
