@@ -1,0 +1,284 @@
+{
+  "label": "web_search",
+  "timestamp": "2026-05-07T14:25:09.351044",
+  "summary": {
+    "question": "What is the latest news about NVDA stock price today?",
+    "session_id": "a73f6a89-fb17-4252-aee2-bb75fa51aeea",
+    "web_search": true,
+    "answer_preview": "I cannot find any information about today's NVDA stock price in the provided context. The SEC filing, earnings transcript, and news sections each contain no relevant data. Stock price data is not avai",
+    "answer_length": 206,
+    "citations": 0,
+    "confidence": 1.0,
+    "langsmith_note": "set LANGCHAIN_API_KEY to push to LangSmith dashboard"
+  },
+  "events": [
+    {
+      "type": "ack",
+      "session_id": "a73f6a89-fb17-4252-aee2-bb75fa51aeea"
+    },
+    {
+      "type": "status",
+      "step": "analyze",
+      "message": "Reading your question\u2026"
+    },
+    {
+      "type": "session_updated",
+      "session_id": "a73f6a89-fb17-4252-aee2-bb75fa51aeea",
+      "title": "NVDA Stock Price News Update"
+    },
+    {
+      "type": "status",
+      "step": "analyze",
+      "message": "Identified: NVDA \u00b7 intent=general \u00b7 mode=web_only \u00b7 2 sub-question(s)"
+    },
+    {
+      "type": "status",
+      "step": "decompose",
+      "message": "Sub-questions: (1) What are the latest news articles about NVDA? \u00b7 (2) What is the current stock price of NVDA?"
+    },
+    {
+      "type": "status",
+      "step": "search",
+      "message": "Searching web for NVDA (2 sub-questions)\u2026"
+    },
+    {
+      "type": "status",
+      "step": "web_search",
+      "message": "Searching web: NVDA What is the latest news about NVDA stock price today?\u2026"
+    },
+    {
+      "type": "status",
+      "step": "search",
+      "message": "Retrieved no results passages"
+    },
+    {
+      "type": "status",
+      "step": "generate",
+      "message": "Synthesizing answer from 0 source passages (NVDA)\u2026"
+    },
+    {
+      "type": "token",
+      "token": "I"
+    },
+    {
+      "type": "token",
+      "token": " cannot"
+    },
+    {
+      "type": "token",
+      "token": " find"
+    },
+    {
+      "type": "token",
+      "token": " any"
+    },
+    {
+      "type": "token",
+      "token": " information"
+    },
+    {
+      "type": "token",
+      "token": " about"
+    },
+    {
+      "type": "token",
+      "token": " today"
+    },
+    {
+      "type": "token",
+      "token": "'s"
+    },
+    {
+      "type": "token",
+      "token": " NV"
+    },
+    {
+      "type": "token",
+      "token": "DA"
+    },
+    {
+      "type": "token",
+      "token": " stock"
+    },
+    {
+      "type": "token",
+      "token": " price"
+    },
+    {
+      "type": "token",
+      "token": " in"
+    },
+    {
+      "type": "token",
+      "token": " the"
+    },
+    {
+      "type": "token",
+      "token": " provided"
+    },
+    {
+      "type": "token",
+      "token": " context"
+    },
+    {
+      "type": "token",
+      "token": "."
+    },
+    {
+      "type": "token",
+      "token": " The"
+    },
+    {
+      "type": "token",
+      "token": " SEC"
+    },
+    {
+      "type": "token",
+      "token": " filing"
+    },
+    {
+      "type": "token",
+      "token": ","
+    },
+    {
+      "type": "token",
+      "token": " earnings"
+    },
+    {
+      "type": "token",
+      "token": " transcript"
+    },
+    {
+      "type": "token",
+      "token": ","
+    },
+    {
+      "type": "token",
+      "token": " and"
+    },
+    {
+      "type": "token",
+      "token": " news"
+    },
+    {
+      "type": "token",
+      "token": " sections"
+    },
+    {
+      "type": "token",
+      "token": " each"
+    },
+    {
+      "type": "token",
+      "token": " contain"
+    },
+    {
+      "type": "token",
+      "token": " no"
+    },
+    {
+      "type": "token",
+      "token": " relevant"
+    },
+    {
+      "type": "token",
+      "token": " data"
+    },
+    {
+      "type": "token",
+      "token": "."
+    },
+    {
+      "type": "token",
+      "token": " Stock"
+    },
+    {
+      "type": "token",
+      "token": " price"
+    },
+    {
+      "type": "token",
+      "token": " data"
+    },
+    {
+      "type": "token",
+      "token": " is"
+    },
+    {
+      "type": "token",
+      "token": " not"
+    },
+    {
+      "type": "token",
+      "token": " available"
+    },
+    {
+      "type": "token",
+      "token": "."
+    },
+    {
+      "type": "status",
+      "step": "evaluate",
+      "message": "Checking answer quality\u2026"
+    },
+    {
+      "type": "status",
+      "step": "evaluate",
+      "message": "Quality score: 100% \u2014 good, finalizing"
+    },
+    {
+      "type": "status",
+      "step": "finalize",
+      "message": "Answer ready \u00b7 confidence 100%"
+    },
+    {
+      "type": "answer",
+      "answer": "I cannot find any information about today's NVDA stock price in the provided context. The SEC filing, earnings transcript, and news sections each contain no relevant data. Stock price data is not available.",
+      "citations": [],
+      "confidence": 1.0,
+      "reasoning": [
+        {
+          "step": "analyze",
+          "message": "Reading your question\u2026"
+        },
+        {
+          "step": "analyze",
+          "message": "Identified: NVDA \u00b7 intent=general \u00b7 mode=web_only \u00b7 2 sub-question(s)"
+        },
+        {
+          "step": "decompose",
+          "message": "Sub-questions: (1) What are the latest news articles about NVDA? \u00b7 (2) What is the current stock price of NVDA?"
+        },
+        {
+          "step": "search",
+          "message": "Searching web for NVDA (2 sub-questions)\u2026"
+        },
+        {
+          "step": "web_search",
+          "message": "Searching web: NVDA What is the latest news about NVDA stock price today?\u2026"
+        },
+        {
+          "step": "search",
+          "message": "Retrieved no results passages"
+        },
+        {
+          "step": "generate",
+          "message": "Synthesizing answer from 0 source passages (NVDA)\u2026"
+        },
+        {
+          "step": "evaluate",
+          "message": "Checking answer quality\u2026"
+        },
+        {
+          "step": "evaluate",
+          "message": "Quality score: 100% \u2014 good, finalizing"
+        },
+        {
+          "step": "finalize",
+          "message": "Answer ready \u00b7 confidence 100%"
+        }
+      ],
+      "session_id": "a73f6a89-fb17-4252-aee2-bb75fa51aeea"
+    }
+  ]
+}

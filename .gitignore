@@ -29,6 +29,13 @@ scripts/ingestion/logs/
 # Eval logs
 evals/qa_eval/logs/
 
+# Trace test output (keep test file, ignore captured traces)
+tests/tracing/traces/*
+!tests/tracing/traces/.gitkeep
+!tests/tracing/traces/20260507_142509_web_search_trace.json
+!tests/tracing/traces/20260507_143838_out_of_scope_trace.json
+!tests/tracing/traces/20260507_144835_retry_rag_trace.json
+
 # Eval results (gitignored EXCEPT specific benchmark runs kept for reference)
 # Note: must ignore subdirs (results/*/) not the parent dir, so negations work
 evals/qa_eval/results/*/

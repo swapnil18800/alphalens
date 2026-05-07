@@ -1,35 +1,93 @@
-# AlphaLens — Architecture
+# AlphaLens — System Architecture
 
-> **See also:** [RAG_MODEL_PIPELINE.md](RAG_MODEL_PIPELINE.md) for detailed explanation of all models used in the RAG pipeline (embeddings, search, reranking, generation, evaluation)
+> **See also:** [RAG_MODEL_PIPELINE.md](RAG_MODEL_PIPELINE.md) for a deep dive into every model, prompt, and search heuristic in the RAG pipeline. [DIRECTORY_STRUCTURE.md](DIRECTORY_STRUCTURE.md) for the full file tree.
+
+---
 
 ## System Overview
 
-AlphaLens is a full-stack agentic RAG (Retrieval-Augmented Generation) system for equity research. It combines:
+AlphaLens is a full-stack agentic RAG (Retrieval-Augmented Generation) system for equity research. Users ask financial questions via a WebSocket connection; a LangGraph state machine retrieves context from SEC 10-K filings and earnings transcripts, generates a grounded, cited answer, self-evaluates its own confidence, and automatically retries with a rewritten query if quality falls below threshold.
 
-- **LangGraph state machine** for multi-step reasoning and self-correction
-- **Hybrid semantic + keyword search** over SEC filings and earnings transcripts
-- **Multi-provider LLM routing** (DeepSeek V3 primary → Cerebras → OpenAI fallback)
-- **Self-evaluating confidence scoring** with automatic retry on low confidence
-- **Real-time WebSocket streaming** of both reasoning and response tokens
-- **Comprehensive offline evaluation** (M1-M8 metrics) for quality measurement
+**Key capabilities:**
+- **Agentic self-correction** — confidence scoring + automatic query rewriting + retry (max 2 iterations)
+- **Hybrid semantic + keyword search** — pgvector cosine ANN + BM25 Okapi → RRF fusion → cross-encoder rerank
+- **Multi-provider LLM routing** — DeepSeek V3 (primary) → Cerebras Qwen-3-235B (secondary) → GPT-4.1-mini (fallback)
+- **Real-time WebSocket streaming** — token-by-token response + live reasoning trace
+- **Production database** — Supabase PostgreSQL with pgvector extension
+- **Clerk auth** — wired, disabled by default (`AUTH_DISABLED=true`)
+- **LangSmith tracing** — optional distributed tracing with token cost reporting
 
-End-to-end flow:
-```
-User Question (WS)
-    ↓
-[plan_search] — analyze intent, extract tickers, scope check
-    ↓
-[retrieve_context] — hybrid search: pgvector + BM25 → RRF + cross-encoder rerank
-    ↓
-[generate_answer] — build context, call LLM, stream tokens
-    ↓
-[evaluate_quality] — confidence score 0–1
-    ├─ score ≥ 0.65 OR iter ≥ 2  →  [finalize] → return answer
-    └─ score < 0.65  →  [rewrite_query] → [retrieve_context] (retry)
-    ↓
-Final Answer + Citations (WS)
-    ↓
-[LangSmith trace logged]
+---
+
+## High-Level Architecture
+
+![Architecture Overview](../assets/architecture.png)
+
+
+---
+
+## WebSocket Data Flow During Chat
+
+The following diagram shows the complete lifecycle of a single user query through the system — from WebSocket message receipt to the final streamed answer.
+
+```mermaid
+sequenceDiagram
+    participant B as Browser (React)
+    participant WS as WS Handler (handler.py)
+    participant G as LangGraph (graph.py)
+    participant N as Nodes (nodes.py)
+    participant SE as SearchEngine
+    participant DB as Supabase DB
+    participant LLM as LLM (DeepSeek/etc.)
+    participant LS as LangSmith
+
+    B->>WS: {type:"query", query:"...", web_search:false, session_id:"uuid"}
+    WS->>WS: Load conversation history from DB
+    WS-->>B: {type:"status", step:"plan_search", message:"Analyzing question..."}
+
+    WS->>G: graph.run(ResearchState)
+
+    G->>N: node_analyze_question (plan_search)
+    Note over N: Extract tickers, classify intent,<br/>decompose sub-questions,<br/>check out-of-scope
+    N-->>B: {type:"token"} × N  (streaming sub-questions)
+    N-->>B: {type:"status", step:"retrieve_context"}
+
+    G->>N: node_execute_search (retrieve_context)
+    N->>SE: hybrid_search(query, tickers, year)
+    SE->>DB: pgvector cosine ANN (top-20 × 2 tables)
+    SE->>SE: BM25 keyword search (top-20 × 2 tables)
+    Note over SE: RRF rank fusion (k=60)<br/>Cross-encoder rerank<br/>Table boost injection
+    SE-->>N: sec_chunks[], transcript_chunks[]
+
+    N-->>B: {type:"status", step:"generate_answer"}
+
+    G->>N: node_generate_response (generate_answer)
+    N->>LLM: stream(context + prompt)
+    loop Token streaming
+        LLM-->>N: token chunk
+        N-->>B: {type:"token", content:"..."}
+    end
+    N-->>B: {type:"status", step:"evaluate_quality"}
+
+    G->>N: node_evaluate_response (evaluate_quality)
+    Note over N: Heuristic check first<br/>LLM judge if borderline (0.50-0.75)
+    
+    alt score >= 0.65 OR iterations >= 2
+        G->>N: node_finalize (finalize)
+    else score < 0.65 AND iterations < 2
+        N-->>B: {type:"status", step:"rewrite_query"}
+        G->>N: node_query_rewriter (rewrite_query)
+        Note over N: Broaden query, expand synonyms
+        G->>N: node_execute_search (retry)
+        G->>N: node_generate_response (retry)
+        G->>N: node_evaluate_response (retry)
+        G->>N: node_finalize (best score wins)
+    end
+
+    N-->>B: {type:"final", answer:"...", confidence:0.85, citations:[...]}
+
+    WS->>DB: Save session + messages
+    WS->>LS: Post LangSmith trace + token cost
 ```
 
 ---
@@ -38,563 +96,624 @@ Final Answer + Citations (WS)
 
 ### 1. FastAPI Application Layer (`app/`)
 
-**Entry Point:** `app/__init__.py` 
+**Entry Point: `app/__init__.py`**
 - Creates FastAPI instance with lifespan handlers
-- Registers middleware (CORS, logging)
-- Mounts all routers (chat, sessions, health)
-- In production: serves React SPA from `frontend/dist`
+- Registers middleware (CORS, request logging)
+- Mounts static file routes: `/logos` (company SVGs) and `/stack_logos` (tech stack logos)
+- In production: serves React SPA from `frontend/dist` (catch-all route)
 
-**Startup & Lifecycle (`app/lifespan.py`)**
-```python
+```mermaid
+flowchart LR
+    INIT[app/__init__.py]
+    LIFE[lifespan.py]
+    MW[middleware.py]
+    ROUTES[routes.py]
+
+    INIT --> LIFE
+    INIT --> MW
+    INIT --> ROUTES
+
+    subgraph Startup
+        LIFE --> POOL["asyncpg pool — 2-10 connections"]
+        LIFE --> INJECT["inject pool into database_manager"]
+        LIFE --> COMPILE["compile LangGraph singleton"]
+        LIFE --> WARM["warm ML models + BM25 index"]
+    end
+
+    ROUTES --> R_HEALTH["GET /health"]
+    ROUTES --> R_CHAT["POST /chat"]
+    ROUTES --> R_SESS["/sessions CRUD"]
+    ROUTES --> R_WS["WebSocket /ws"]
+```
+
+**Startup Sequence:**
+```
 on_startup:
   1. Create asyncpg connection pool (2–10 connections)
-  2. Inject pool into database_manager
-  3. Pre-compile LangGraph research agent
-  4. Background: warm embedding + reranker models, build BM25 index
-  
+  2. Inject pool into agent/rag/database_manager.py via set_pool()
+  3. Pre-compile LangGraph research_graph singleton (build_graph())
+  4. Background task: warm sentence-transformer embedding model
+  5. Background task: warm cross-encoder reranker model
+  6. Background task: load all chunks from DB → build BM25 index in memory
+
 on_shutdown:
-  1. Close DB pool
+  1. Close asyncpg pool gracefully
 ```
 
 **WebSocket Handler (`app/websocket/handler.py`)**
-- Manages per-connection state: session_id, conversation history
-- Receives messages: `{type: "query", query: "...", web_search: bool}`
-- Invokes `agent/graph/graph.py:run()` with state callbacks
-- Emits status updates: `{type: "status", step: "...", message: "..."}`
-- Streams tokens: `{type: "token", content: "..."}`
-- Saves session & messages to DB on completion
-- Submits LangSmith trace on completion (if enabled)
+
+The central WS coordinator. Manages per-connection lifecycle:
+- Receives `{type: "query", query, web_search, session_id}` from browser
+- Emits `{type: "status"}` updates at each graph node boundary
+- Streams `{type: "token"}` from LLM via `_token_callback`
+- Saves `session` + `messages` to DB on completion
+- Submits LangSmith run metadata (token counts, cost) on completion
 
 **Authentication (`app/auth/clerk.py`)**
-- Implements Clerk JWT verification for user sessions
-- **Current status:** `AUTH_DISABLED=true` (default in `config.py`)
-- **Why disabled:** Local dev doesn't require authentication; allows testing without Clerk setup
-- **How to enable:** Set `AUTH_DISABLED=false` in `.env` + configure `CLERK_SECRET_KEY` and `CLERK_PUBLISHABLE_KEY`
-- When enabled: JWT decoded via Clerk JWKS endpoint, returns user payload; when disabled: returns anonymous user
+- Implements Clerk JWT verification (JWKS-based)
+- **Default:** `AUTH_DISABLED=true` — returns anonymous user with `anon_id` from browser localStorage
+- **To enable:** Set `AUTH_DISABLED=false` + configure `CLERK_SECRET_KEY` + `CLERK_PUBLISHABLE_KEY`
+- When enabled: JWT decoded, user payload extracted, sessions scoped per user
 
 **REST Endpoints**
+
 | Endpoint | Method | Purpose |
 |----------|--------|---------|
-| `/health` | GET | Liveness probe |
-| `/chat` | POST | One-off query (non-streaming) |
-| `/sessions` | GET/POST | List/create sessions |
-| `/sessions/{id}` | GET/PUT/DELETE | Manage session |
-| `/sessions/{id}/messages` | GET | Retrieve conversation |
-| `/ws` | WebSocket | Streaming chat interface (primary) |
+| `/health` | GET | Liveness probe (Railway/Supabase healthcheck) |
+| `/chat` | POST | One-off non-streaming query |
+| `/sessions` | GET / POST | List/create chat sessions |
+| `/sessions/{id}` | GET / PUT / DELETE | Manage individual session |
+| `/sessions/{id}/messages` | GET | Retrieve conversation history |
+| `/ws` | WebSocket | Primary streaming chat interface |
 
 ---
 
 ### 2. LangGraph Orchestration (`agent/graph/`)
 
-**State Definition (`state.py`)**
+The LangGraph state machine is the core orchestration layer. All inter-node communication happens through `ResearchState` — a TypedDict that flows through every node.
 
-`ResearchState` TypedDict contains all fields flowing through the graph:
+```mermaid
+flowchart TD
+    START([User Query]) --> PS
+
+    PS[plan_search]
+
+    PS -->|out_of_scope| FE[finalize_early]
+    PS --> RC
+
+    RC[retrieve_context]
+
+    RC --> GA
+
+    GA[generate_answer]
+
+    GA --> EQ
+
+    EQ[evaluate_quality]
+
+    EQ -->|"score >= 0.65 or iter >= 2"| FIN
+    EQ -->|"score < 0.65 and iter < 2"| RQ
+
+    RQ[rewrite_query]
+
+    RQ --> RC
+
+    FIN[finalize]
+
+    FIN --> END([Final Answer + Citations])
+    FE --> END
+```
+
+**`ResearchState` TypedDict (`state.py`)**
+
+Every field is initialized in `graph.py:run()` before graph execution begins:
 
 | Field | Type | Role |
 |-------|------|------|
-| `question` | str | User's original query |
-| `tickers` | List[str] | Extracted stock tickers (e.g., ["NVDA", "AMD"]) |
-| `sub_questions` | List[str] | Decomposed analysis steps (shown as "thinking") |
-| `intent` | str | Classification: "risk_factors", "valuation", "comparison", etc. |
-| `query_mode` | str | "rag_only" \| "web_only" \| "hybrid" |
-| `is_out_of_scope` | bool | True if question unrelated to equity research |
-| `sec_chunks` | List[Dict] | Retrieved 10-K segments with metadata |
-| `transcript_chunks` | List[Dict] | Retrieved earnings call segments |
-| `news_results` | List[Dict] | Web search results (optional) |
-| `draft_answer` | str | Generated response (raw LLM output) |
-| `citations` | List[Dict] | Source references: {ticker, source, year, quarter, similarity} |
-| `eval_score` | float | Confidence 0–1 (heuristic + LLM-as-judge) |
-| `eval_reason` | str | Explanation of confidence score |
-| `final_answer` | str | Polished response sent to user |
-| `confidence` | float | Same as eval_score, exposed to frontend |
-| `iteration_count` | int | Retry counter (0, 1, or 2) |
-| `_token_callback` | Callable | Async function to emit tokens to WebSocket |
-| `_status_callback` | Callable | Async function to emit status updates |
-| `error` | Optional[str] | Error message if node fails |
+| `question` | `str` | User's original query |
+| `tickers` | `List[str]` | Extracted stock tickers (`["NVDA", "AMD"]`) |
+| `sub_questions` | `List[str]` | Analysis decomposition (shown as "thinking" trace) |
+| `intent` | `str` | Classification: `"risk_factors"`, `"valuation"`, `"comparison"`, etc. |
+| `query_mode` | `str` | `"rag_only"` \| `"web_only"` \| `"hybrid"` \| `"out_of_scope"` |
+| `is_out_of_scope` | `bool` | True → route to `finalize_early` |
+| `year` | `Optional[int]` | Extracted fiscal year for DB filtering |
+| `sec_chunks` | `List[Dict]` | Retrieved 10-K segments with metadata |
+| `transcript_chunks` | `List[Dict]` | Retrieved earnings call segments |
+| `news_results` | `List[Dict]` | Tavily web search results |
+| `draft_answer` | `str` | Raw LLM output |
+| `citations` | `List[Dict]` | `{ticker, source, year, quarter, similarity}` |
+| `eval_score` | `float` | Confidence 0–1 |
+| `eval_reason` | `str` | Explanation of confidence |
+| `best_score` | `float` | Best eval score across all iterations |
+| `best_answer` | `str` | Answer corresponding to best score |
+| `best_citations` | `List[Dict]` | Citations for best answer |
+| `final_answer` | `str` | Polished response sent to user |
+| `confidence` | `float` | `= best_score`, exposed to frontend |
+| `iteration_count` | `int` | Retry counter (0, 1, or 2) |
+| `_token_callback` | `Callable` | Async function to emit tokens → WebSocket |
+| `_status_callback` | `Callable` | Async function to emit status → WebSocket |
+| `web_search` | `bool` | Whether to invoke Tavily |
+| `conversation_history` | `List[Dict]` | Prior turns for multi-turn context |
+| `error` | `Optional[str]` | Error message if node fails |
 
 **Node Definitions (`nodes.py`)**
 
-1. **`node_analyze_question`** (`plan_search`)
-   - LLM: **DeepSeek V3** (primary) or **Cerebras Qwen-3-235B** / **OpenAI GPT-4.1-mini** (fallback)
-   - Classify intent (risk factors? valuation? competitor analysis?)
-   - Extract company tickers
-   - Decompose into sub-questions (shown to user as "thinking")
-   - Route: out-of-scope? → `finalize_early` : continue
+| Node | LLM | Key Operations |
+|------|-----|----------------|
+| `node_analyze_question` | DeepSeek V3 → Cerebras → GPT-4.1-mini | Extract tickers, classify intent, decompose sub-questions, routing decision |
+| `node_execute_search` | — (no LLM) | Semantic cache → embed → pgvector + BM25 → RRF → rerank → table boost |
+| `node_generate_response` | DeepSeek V3 → Cerebras → GPT-4.1-mini | Build context, stream LLM tokens, build citations |
+| `node_evaluate_response` | GPT-4o (consistent judge) | Heuristic check + LLM judge if borderline (0.50–0.75) |
+| `node_query_rewriter` | DeepSeek V3 → Cerebras → GPT-4.1-mini | Rewrite/broaden query for retry |
+| `node_finalize` | — | Format final answer using best score from any iteration |
+| `node_finalize_early` | — | Graceful refusal for out-of-scope queries |
 
-2. **`node_execute_search`** (`retrieve_context`)
-   - Check semantic cache (query embedding → cosine ≥ 0.92 hit?)
-   - If miss: embed query with **all-MiniLM-L6-v2** (384-dim, CPU-fast)
-   - Parallel search:
-     - **pgvector cosine ANN** on `ten_k_chunks` (top-20)
-     - **pgvector cosine ANN** on `transcript_chunks` (top-20)
-     - **BM25 keyword search** on `ten_k_chunks` (top-20)
-     - **BM25 keyword search** on `transcript_chunks` (top-20)
-   - **Reciprocal Rank Fusion (RRF, k=60)** merges both ranks
-   - **Cross-encoder reranking** (ms-marco-TinyBERT-L-2-v2) → keep top-k chunks
-   - Return: `sec_chunks`, `transcript_chunks`
-
-3. **`node_generate_response`** (`generate_answer`)
-   - Build prompt from top-k chunks + conversation history
-   - Call LLM via `agent/llm/factory.py` (DeepSeek → Cerebras ��� OpenAI fallback)
-   - **Model:** DeepSeek **V3** (primary, fast/cheap) or Cerebras **Qwen-3-235B** / OpenAI **GPT-4.1-mini** (fallback)
-   - Stream tokens via `_token_callback`
-   - Extract citations from chunks
-   - Return: `draft_answer`, `citations`
-
-4. **`node_evaluate_response`** (`evaluate_quality`)
-   - **Model:** OpenAI **GPT-4o** (consistent eval scoring)
-   - First: heuristic check (presence of citations, length, etc.)
-   - If borderline (0.50–0.75): call LLM-as-judge for confidence
-   - Return: `eval_score` (0–1), `eval_reason`
-   - Track best score across iterations
-
-5. **`node_query_rewriter`** (`rewrite_query`)
-   - **Model:** DeepSeek **V3** or Cerebras / OpenAI fallback
-   - If eval_score < 0.65 AND iteration < 2:
-     - Broaden/rephrase query (expand synonyms, relax constraints)
-     - Return: `rewritten_query`
-   - Else: pass through (→ finalize)
-
-6. **`node_finalize`** (`finalize`)
-   - Format final response with citations
-   - Set confidence = best_score from any iteration
-   - Return: `final_answer`, `confidence`
-
-7. **`node_finalize_early`** (`finalize_early`)
-   - Query out-of-scope or error occurred
-   - Return graceful message: "I can't help with that question"
-
-**Edge Logic (`edges.py`)**
-
-- `route_after_analysis`: out_of_scope? → finalize_early : retrieve_context
-- `route_after_evaluation`: (score ≥ 0.65 OR iter ≥ 2) → finalize : rewrite_query
-
-**Graph Builder (`graph.py`)**
+**Routing Logic (`edges.py`)**
 ```python
-def build_graph():
-    g = StateGraph(ResearchState)
-    g.add_node("plan_search",      node_analyze_question)
-    g.add_node("retrieve_context", node_execute_search)
-    g.add_node("generate_answer",  node_generate_response)
-    g.add_node("evaluate_quality", node_evaluate_response)
-    g.add_node("rewrite_query",    node_query_rewriter)
-    g.add_node("finalize",         node_finalize)
-    g.add_node("finalize_early",   node_finalize_early)
-    
-    g.set_entry_point("plan_search")
-    g.add_conditional_edges("plan_search", route_after_analysis, ...)
-    g.add_edge("retrieve_context", "generate_answer")
-    g.add_edge("generate_answer", "evaluate_quality")
-    g.add_conditional_edges("evaluate_quality", route_after_evaluation, ...)
-    g.add_edge("rewrite_query", "retrieve_context")  # retry loop
-    g.add_edge("finalize", END)
-    g.add_edge("finalize_early", END)
-    
-    return g.compile()
+def route_after_analysis(state) -> str:
+    return "finalize_early" if state["is_out_of_scope"] else "retrieve_context"
 
-# Singleton instance
-_graph = build_graph()
-
-async def run(state: ResearchState) -> ResearchState:
-    """Execute graph, inject callbacks, log to LangSmith."""
-    return await _graph.ainvoke(state)
+def route_after_evaluation(state) -> str:
+    if state["eval_score"] >= 0.65 or state["iteration_count"] >= 2:
+        return "finalize"
+    return "rewrite_query"
 ```
 
 ---
 
-## RAG Pipeline Architecture
+### 3. RAG Pipeline (`agent/rag/`)
 
-### Models Used at Each Stage
+```mermaid
+flowchart LR
+    Q[User Query] --> CACHE{Semantic Cache — cosine 0.92}
+    CACHE -->|HIT| CACHED[Cached Answer]
+    CACHE -->|MISS| EMBED[Embed — all-MiniLM-L6-v2]
 
-| Stage | Model | Purpose | Details |
-|-------|-------|---------|---------|
-| **Query Embedding** | `all-MiniLM-L6-v2` | Convert query to dense vector | 384-dim, CPU-fast, ~2ms |
-| **Document Embedding** | `all-MiniLM-L6-v2` | Embed all chunks at ingest time | Same as query for consistency |
-| **Semantic Search (pgvector)** | pgvector IVFFlat | ANN similarity search | Cosine similarity, top-20 candidates |
-| **Keyword Search** | BM25 Okapi | Full-text matching | Parallel to pgvector, top-20 candidates |
-| **Rank Fusion** | RRF (k=60) | Merge semantic + keyword results | Reciprocal Rank Fusion formula |
-| **Reranking** | `ms-marco-TinyBERT-L-2-v2` | Score top-20 by relevance | Cross-encoder: final ranking → top-k |
-| **Generation** | DeepSeek V3 / Cerebras / OpenAI | Generate grounded answer | Priority chain via LLMFactory |
+    EMBED --> PAR{Parallel Search}
 
-### Search Pipeline Detail
+    PAR --> PGV[pgvector — cosine ANN top-20]
+    PAR --> BM25[BM25 Okapi — keyword top-20]
+    PAR --> WEB[Tavily — web search]
 
-```
-Query Input
-    ↓
-Check Semantic Cache (cosine ≥ 0.92?)
-    ├─ HIT  → return cached answer
-    └─ MISS → continue
-    ↓
-Embed Query with all-MiniLM-L6-v2
-    ↓
-Parallel Search:
-    ├─ pgvector (cosine similarity, top-20)
-    │   ├─ ten_k_chunks
-    │   └─ transcript_chunks
-    │
-    ├─ BM25 keyword search (top-20 each)
-    │   ├─ ten_k_chunks
-    │   └─ transcript_chunks
-    │
-    └─ Web search (Tavily, if enabled, top-10)
-    ↓
-Reciprocal Rank Fusion (RRF, k=60)
-    → merge pgvector + BM25 ranks
-    → score each by 1/(k + position)
-    → deduplicate
-    ↓
-Cross-Encoder Rerank (ms-marco-TinyBERT-L-2-v2)
-    → score top-20 by relevance
-    → keep top-k for context window (dynamic budget)
-    ↓
-Return: sec_chunks[], transcript_chunks[], citations[]
+    PGV --> RRF[RRF Fusion k=60]
+    BM25 --> RRF
+
+    RRF --> CE[Cross-Encoder — TinyBERT rerank]
+    CE --> BOOST[Table Boost — inject top-4]
+    BOOST --> CTX[Context Window — 6000 chars]
+    WEB --> CTX
+
+    CTX --> GEN[Response Generator — DeepSeek V3]
+    GEN --> ANS[Grounded Answer + Citations]
 ```
 
-**Parameters:**
-- **Embedding model:** `all-MiniLM-L6-v2` (384-dim, CPU, ~2ms/query)
-- **Rerank model:** `cross-encoder/ms-marco-TinyBERT-L-2-v2` (ranked on CPU)
-- **RRF constant:** k=60 (reciprocal rank fusion)
-- **Semantic cache threshold:** cosine ≥ 0.92
-- **Output budget:** dynamic (typically top-10–20 chunks, depends on context window)
+**`search_engine.py`** — Hybrid retrieval coordinator:
+- Reads pre-built BM25 index from memory (warmed at startup)
+- Queries pgvector via `database_manager.py` (asyncpg)
+- Runs RRF merge with `k=60` to dampen rank inflation
+- Invokes cross-encoder reranking via sentence-transformers
+- Injects top-4 table-type chunks post-rerank (bypasses TinyBERT table downranking)
+- Applies year filter `±1` expansion for NVDA-style offset fiscal years
 
-### Database Manager (`agent/rag/database_manager.py`)
-- Wraps asyncpg pool (injected at startup)
-- `search_chunks(query_embedding, filters)` → pgvector cosine search
-- `get_semantic_cache_entry(query_embedding)` → cached Q→A lookup
-- `insert_semantic_cache(...)` → save cache entry
-- Connection pooling: 2–10 connections (configurable via `DB_POOL_MIN`, `DB_POOL_MAX`)
+**`database_manager.py`** — asyncpg wrapper:
+- Pool injected at startup via `set_pool()`
+- `search_chunks(query_embedding, ticker, year, table, top_k)` → pgvector cosine ANN
+- `get_semantic_cache_entry(query_embedding)` → cache lookup
+- `insert_semantic_cache(query, answer, embedding)` → cache write
 
-### Response Generator (`agent/rag/response_generator.py`)
-- Takes top-k chunks from search
-- Builds context window (system + retrieved chunks + conversation history)
-- Calls `agent/llm/factory.py:create()` → LLM client
-- Streams tokens via `state._token_callback`
-- Extracts citations: map chunk → ticker, source, quarter, year
+**`response_generator.py`** — Context + LLM call:
+- Builds context: `format_chunks()` with round-robin interleaving for cross-company queries
+- Context budget: 6000 chars total (60% SEC, 40% transcript for hybrid; all SEC for rag_only)
+- Calls `LLMFactory.create()` and streams tokens via `state._token_callback`
+- Deduplicates citations (SEC by key tuple, web by URL)
 
-### Prompts (`agent/rag/prompts.py`)
-- All LLM prompts as Python constants (no inline prompt engineering)
-- Templates include:
-  - `SYSTEM_ANALYZE_INTENT` — extract tickers, classify intent
-  - `SYSTEM_GENERATE_ANSWER` — generate grounded response with citations
-  - `SYSTEM_EVALUATE_CONFIDENCE` — judge response quality (heuristic first)
-  - `SYSTEM_QUERY_REWRITER` — broaden/rephrase query on retry
-- Single source of truth: update here, not scattered across nodes
+**`prompts.py`** — Single source of truth for all prompts:
+- `ANALYSIS_SYSTEM_PROMPT` — intent extraction, ticker detection, routing
+- `RESPONSE_SYSTEM_PROMPT` — grounded answer generation with citation rules
+- `EVAL_PROMPT` — LLM-as-judge verdict (pass/partial/fail)
+- `REWRITE_PROMPT` — query broadening for retry
+- `OUT_OF_SCOPE_REPLY` — graceful refusal template
 
 ---
 
-## LLM Abstraction (`agent/llm/`)
+### 4. LLM Abstraction Layer (`agent/llm/`)
 
-**Base Client (`base.py`)**
-```python
-class BaseLLMClient:
-    async def astream(self, messages: List[Dict]) -> AsyncGenerator[str, None]
-    async def acomplete(self, prompt: str) -> str
+```mermaid
+flowchart TB
+    FAC[LLMFactory.create]
+
+    FAC -->|"1st: DEEPSEEK_API_KEY set"| DS[DeepSeek V3 — deepseek-chat, no daily quota]
+
+    FAC -->|"2nd: CEREBRAS_API_KEY set"| CB[Cerebras Qwen-3-235B — fast inference, daily quota]
+
+    FAC -->|"3rd: Fallback"| OA[OpenAI GPT-4.1-mini — fallback, gpt-4o for eval]
+
+    TT[token_tracker.py — per-call tokens + cost, posts to LangSmith]
+
+    DS --> TT
+    CB --> TT
+    OA --> TT
+
+    BASE[BaseLLMClient — astream, acomplete]
+    DS -.->|implements| BASE
+    CB -.->|implements| BASE
+    OA -.->|implements| BASE
 ```
 
-**DeepSeek Client (`deepseek_client.py`)**
-- API: `https://api.deepseek.com` (OpenAI-compatible)
-- Model: `deepseek-chat` (DeepSeek V3, 236B MoE)
-- Role: **Primary** (cheapest, no daily quota)
-- Cost: $0.14/$0.28 per 1M input/output tokens
-
-**Cerebras Client (`cerebras_client.py`)**
-- API: `https://api.cerebras.ai/v1/chat/completions`
-- Model: `qwen-3-235b-a22b-instruct-2507`
-- Role: **Secondary** (fast, but has daily request quota)
-- Raises `CerebrasRateLimitError` on 429 for factory to catch
-
-**OpenAI Client (`openai_client.py`)**
-- API: OpenAI v1
-- Models: 
-  - `gpt-4.1-mini` — response generation fallback
-  - `gpt-4o` — evaluation (consistent scoring)
-- Role: Final fallback for generation; primary for eval
-
-**Token Tracker (`token_tracker.py`)**
-- Thread-safe singleton tracking per-call token usage and USD cost
-- Pricing defined for all models (DeepSeek, GPT-4.1-mini, GPT-4o, Cerebras)
-- Snapshot posted to LangSmith trace after each graph execution
-
-**Factory (`factory.py`)**
-```python
-class LLMFactory:
-    @staticmethod
-    def create() -> BaseLLMClient:
-        """Route by provider priority: DeepSeek → Cerebras → OpenAI."""
-        if LLM_PROVIDER == "auto":
-            if DEEPSEEK_API_KEY:
-                return DeepSeekClient()
-            if CEREBRAS_API_KEY:
-                try:
-                    return CerebrasClient()  # with backoff on 429
-                except RateLimitError:
-                    return OpenAIClient()
-            return OpenAIClient()
-    
-    @staticmethod
-    def create_eval_llm() -> BaseLLMClient:
-        """Eval LLM — tries Cerebras → DeepSeek → OpenAI in auto mode."""
+**Provider Selection Logic:**
 ```
+LLM_PROVIDER=auto (default):
+  1. DEEPSEEK_API_KEY present? → DeepSeekClient (fast, cheap, quota-free)
+  2. CEREBRAS_API_KEY present? → CerebrasClient (fast, but daily quota)
+     - On 429 CerebrasRateLimitError → fall through to OpenAI
+  3. OPENAI_API_KEY → OpenAIClient (GPT-4.1-mini for generation)
+
+Eval LLM (always GPT-4o):
+  - factory.create_eval_llm() always returns GPT-4o for consistent judging
+  - Non-negotiable: gpt-4o-mini gave inconsistent verdicts on identical answers
+```
+
+**Token Tracking (`token_tracker.py`)**
+
+| Model | Input ($/1M) | Output ($/1M) |
+|-------|-------------|--------------|
+| DeepSeek V3 | $0.14 | $0.28 |
+| GPT-4.1-mini | $0.40 | $1.60 |
+| GPT-4o | $2.50 | $10.00 |
+| Cerebras Qwen-3-235B | ~$0.60 | ~$0.60 |
+
+Typical total query cost: **~$0.002–$0.008** (DeepSeek V3 primary).
 
 ---
 
-## Frontend (`frontend/`)
+### 5. Frontend (`frontend/`)
 
-**Stack:** React 18 + TypeScript + Vite + Tailwind CSS + framer-motion
+**Stack:** React 18 + TypeScript + Vite + Tailwind CSS + framer-motion + Clerk
 
-**Pages:**
-- **LandingPage:** Public home, feature grid, marketing copy
-- **ChatPage:** Main interface — chat history, streaming responses, citations
+```mermaid
+flowchart TB
+    subgraph Pages
+        LP[LandingPage.tsx]
+        CP[ChatPage.tsx]
+    end
 
-**WebSocket Integration (`ChatPage.tsx`)**
-```typescript
-useEffect(() => {
-  const ws = new WebSocket(WS_URL);
-  ws.onmessage = (evt) => {
-    const msg = JSON.parse(evt.data);
-    if (msg.type === "token") accumulateToken(msg.content);
-    if (msg.type === "status") updateStatus(msg.message);
-  };
-  ws.send(JSON.stringify({type: "query", query, web_search}));
-}, []);
+    subgraph Components
+        SB[Sidebar.tsx]
+        CM[ChatMessage.tsx]
+        CI[ChatInput.tsx]
+        RT[ReasoningTrace.tsx]
+        AM[AboutModal.tsx]
+        AUTH[AuthModal.tsx]
+    end
+
+    subgraph Hooks
+        UA[useAuthStatus.ts]
+        ANON[useAnonId.ts]
+    end
+
+    subgraph Lib
+        API[api.ts]
+        CFG[config.ts]
+    end
+
+    LP --> CP
+    CP --> SB
+    CP --> CM
+    CP --> CI
+    CP --> RT
+    CP --> AM
+    CP --> AUTH
+    CP --> API
+    CP --> CFG
+    CP --> UA
+    CP --> ANON
 ```
 
-**Message Protocol:**
-```json
-/* Client → Server */
+**WebSocket Protocol (Client → Server):**
+```jsonc
+// Client sends:
 {
   "type": "query",
-  "query": "What are NVIDIA's risk factors?",
+  "query": "What are NVIDIA's key risk factors?",
   "web_search": false,
-  "session_id": "uuid"
+  "session_id": "uuid-or-null"
 }
 
-/* Server → Client (streaming) */
+// Server streams:
 {"type": "status", "step": "plan_search", "message": "Analyzing question..."}
+{"type": "status", "step": "retrieve_context", "message": "Searching SEC filings..."}
 {"type": "token", "content": "NVIDIA"}
-{"type": "token", "content": " faces"}
-...
-{"type": "final", "answer": "...", "confidence": 0.85, "citations": [...]}
+{"type": "token", "content": " faces several significant risks..."}
+// ... (hundreds of token messages)
+{"type": "final", "answer": "...", "confidence": 0.85, "citations": [
+  {"ticker": "NVDA", "source": "10-K", "year": 2025, "similarity": 0.91}
+]}
 ```
+
+**Anonymous Session Flow:**
+- `useAnonId.ts` generates a UUID and stores it in `localStorage` as `anon_id`
+- All sessions are scoped by `anon_id` when `AUTH_DISABLED=true`
+- Session history persists across page reloads via the same `anon_id`
+- When Clerk auth is enabled: sessions scope to authenticated user instead
 
 ---
 
-## Data Stores
+### 6. Data Stores (Supabase PostgreSQL + pgvector)
 
-### PostgreSQL (Railway)
+> **Database host:** Supabase (migrated from Railway PostgreSQL, commit `2bc596c`)
 
-| Table | Fields | Purpose |
-|-------|--------|---------|
-| `ten_k_chunks` | id, ticker, year, text, embedding (pgvector), created_at | SEC 10-K filing chunks (27+ companies) |
-| `transcript_chunks` | id, ticker, quarter, year, text, embedding, created_at | Earnings call transcripts (28+ companies) |
-| `semantic_cache` | id, query_embedding, answer, score, created_at | Q→A cache (cosine ≥ 0.92 hits) |
-| `sessions` | id, user_id, title, created_at, updated_at | Chat sessions |
-| `messages` | id, session_id, role, content, metadata, created_at | Chat history |
-| `eval_logs` | id, session_id, query, eval_score, reason, created_at | Confidence score audit trail |
+```mermaid
+erDiagram
+    ten_k_chunks {
+        uuid id PK
+        varchar ticker
+        int year
+        varchar section
+        text text
+        varchar chunk_type
+        vector_384 embedding
+        timestamp created_at
+    }
 
-**Indexes:**
-- `ten_k_chunks.embedding` (pgvector, IVFFlat)
-- `transcript_chunks.embedding` (pgvector, IVFFlat)
-- `semantic_cache.query_embedding` (pgvector, IVFFlat)
-- `sessions.user_id`
-- `messages.session_id`
+    transcript_chunks {
+        uuid id PK
+        varchar ticker
+        int year
+        varchar quarter
+        text text
+        varchar chunk_type
+        vector_384 embedding
+        timestamp created_at
+    }
+
+    semantic_cache {
+        uuid id PK
+        text query
+        vector_384 query_embedding
+        text answer
+        float score
+        timestamp created_at
+    }
+
+    sessions {
+        uuid id PK
+        varchar user_id
+        varchar anon_id
+        varchar title
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    messages {
+        uuid id PK
+        uuid session_id FK
+        varchar role
+        text content
+        jsonb metadata
+        timestamp created_at
+    }
+
+    eval_logs {
+        uuid id PK
+        uuid session_id FK
+        text query
+        float eval_score
+        text reason
+        timestamp created_at
+    }
+
+    sessions ||--o{ messages : contains
+    sessions ||--o{ eval_logs : tracks
+```
+
+**pgvector Indexes:**
+- `ten_k_chunks.embedding` — IVFFlat, cosine metric (lists=100)
+- `transcript_chunks.embedding` — IVFFlat, cosine metric
+- `semantic_cache.query_embedding` — IVFFlat, cosine metric
+
+**BM25 Index (in-memory):**
+- Built at startup from all `ten_k_chunks` + `transcript_chunks` text
+- `BM25Okapi` from `rank_bm25` library, k1=1.5, b=0.75
+- Never persisted to disk; always rebuilt from DB on startup (~30s for 50k chunks)
 
 ---
 
-## Data Ingestion Pipeline (`scripts/ingestion/`)
+## Data Ingestion Pipeline (`db/ingestion/`)
 
-**1. SEC 10-K Ingestion (`ingest_sec.py`)**
+```mermaid
+flowchart TD
+    SCHEMA[1. db/setup_db.py — apply schema + pgvector + IVFFlat indexes]
 
-```bash
-# From project root
-python scripts/ingestion/ingest_sec.py --start-year 2023 --end-year 2025 --replace
+    SEC[2. ingest_sec.py — SEC EDGAR API, 10-K filings, 33 companies, ten_k_chunks]
+
+    SA[3. ingest_stockanalysis.py — earnings transcripts, 27 companies, transcript_chunks]
+
+    AUDIT[4. generate_data_audit.py — query DB stats, write audit markdown]
+
+    SCHEMA --> SEC --> SA --> AUDIT
+
+    style SEC fill:#dbeafe,color:#111111
+    style SA fill:#dcfce7,color:#111111
+    style AUDIT fill:#fef3c7,color:#111111
 ```
 
-**Other useful commands:**
-```bash
-# Specific tickers
-python scripts/ingestion/ingest_sec.py --tickers NVDA AAPL MSFT --start-year 2023 --end-year 2025 --replace
-
-# All from data/tickers.txt
-python scripts/ingestion/ingest_sec.py --all --start-year 2023 --end-year 2025 --replace
-```
-
-**What it does:**
-- Downloads SEC 10-K filings (FY2023, FY2024, FY2025)
-- Chunks: 1400-char segments with 200-char overlap
-- Detects sections (Item 1A Risk Factors, Item 7 MD&A, etc.)
-- Embeds with **all-MiniLM-L6-v2** (384-dim)
-- Stores in `ten_k_chunks` table (pgvector indexed)
-
-**Logging:** `scripts/ingestion/logs/sec_10k/sec_YYYYMMDD_HHMMSS.log`
-
-**Time:** 2-3 hours for all 28 tickers
-
----
-
-**2. yfinance Earnings Transcripts (`ingest_yfinance.py`)**
-
-```bash
-# From project root
-python scripts/ingestion/ingest_yfinance.py --start-quarter "Q1 2023" --end-quarter "Q4 2025" --replace
-```
-
-**Other useful commands:**
-```bash
-# Specific tickers
-python scripts/ingestion/ingest_yfinance.py --tickers NVDA AAPL MSFT --start-quarter "Q1 2023" --end-quarter "Q4 2025" --replace
-
-# From custom ticker file
-python scripts/ingestion/ingest_yfinance.py --ticker-file data/tickers.txt --start-quarter "Q1 2023" --end-quarter "Q4 2025" --replace
-```
-
-**What it does:**
-- Fetches quarterly earnings summaries from yfinance (free, no API key)
-- Each quarter = 1 chunk with revenue, margins, EPS, key metrics
-- Embeds with **all-MiniLM-L6-v2** (384-dim)
-- Stores in `transcript_chunks` table (pgvector indexed)
-
-**Logging:** `scripts/ingestion/logs/yfinance_transcripts/transcript_YYYYMMDD_HHMMSS.log`
-
-**Time:** 20-30 min
+**Chunking Strategy:**
+- 1400-character sliding window, 200-character overlap
+- Table detection: regex pattern → `chunk_type = "table"` (not prose)
+- Table chunks get injected post-rerank (bypass TinyBERT downranking)
+- All chunks embedded at ingest time → stored as `vector(384)` in pgvector
 
 ---
 
 ## Evaluation Suite (`evals/qa_eval/`)
 
-**Comprehensive offline evaluation (8 metrics)**
+```mermaid
+flowchart LR
+    QF[question_vN.txt]
 
-### Phase 1: Ground Truth Generation
-```bash
-# From project root or evals/qa_eval/
-python evals/qa_eval/generate_ground_truth.py --input "question_vN.txt" --full
+    GT[generate_ground_truth.py — GPT-4o synthesize GT]
+
+    RUN[run_eval.py — compute M1-M8 metrics]
+
+    RESULTS[results/timestamp/ — JSON + analysis.md]
+
+    DOCS[evals/qa_eval/docs/ — improvement summaries]
+
+    QF --> GT --> QF
+    QF --> RUN --> RESULTS --> DOCS
 ```
 
-**What it does:**
-1. Load `question_vN.txt` (JSON with categories, questions, empty `ground_truth_map`)
-2. For each question:
-   - Extract tickers using hardcoded TICKER_MAP (e.g., "nvidia" → "NVDA")
-   - Query DB: pgvector + BM25 hybrid search on `ten_k_chunks` + `transcript_chunks` (DB only, no web)
-   - Call **GPT-4o** to synthesize ground truth + 5 key verifiable facts from chunks
-3. Populate `ground_truth_map` in-place in question file
+**M1–M8 Metric Summary:**
 
-### Phase 2: Evaluation Execution
-```bash
-# Smoke test (first 3 questions)
-python evals/qa_eval/run_eval.py --smoke --input "question_vN.txt"
+| Metric | Definition | LLM? | Weight |
+|--------|-----------|------|--------|
+| **M1** | Factual correctness — key facts in answer (fuzzy match) | No | 1/6 |
+| **M2** | RAGAS faithfulness — answer grounded in retrieved context | GPT-4o | 1/6 |
+| **M3** | Retrieval recall — key facts in top-K chunks | No | 1/6 |
+| **M4** | RAGAS context precision — chunks are relevant | GPT-4o | 1/6 |
+| **M6** | Routing accuracy — query_mode vs expected | No | 1/6 |
+| **M7** | LLM judge verdict (pass=1.0 / partial=0.5 / fail=0.0) | GPT-4o | 1/6 |
+| **Score** | `mean(M1, M2, M3, M4, M6, M7)` | — | — |
 
-# Full eval (all ~20 questions)
-python evals/qa_eval/run_eval.py --full --input "question_vN.txt"
-```
-
-**Metrics Computed (M1–M8):**
-
-| Metric | Definition | LLM Required |
-|--------|-----------|--------------|
-| **M1 (Factual correctness)** | % of key_facts found in answer (fuzzy match) | No |
-| **M2 (Faithfulness)** | RAGAS — answer faithful to retrieved context | Yes (GPT-4o) |
-| **M3 (Retrieval recall)** | % of key_facts found in top-K chunks | No |
-| **M4 (Context precision)** | RAGAS — retrieved chunks are relevant | Yes (GPT-4o) |
-| **M6 (Routing accuracy)** | web_search flag alignment with query_mode | No |
-| **M7 (Judge score)** | LLM judge verdict (pass/partial/fail) | Yes (GPT-4o) |
-| **M8 (Latency + calibration)** | Pipeline latency + confidence calibration RMSE | No |
-| **Average** | mean(M1, M2, M3, M4, M6, M7) | — |
-
-**Output:**
-- `evals/qa_eval/results/<timestamp>/NN_category_question.json` — Per-question results (all metrics + reasoning)
-- `evals/qa_eval/results/<timestamp>/_summary.json` — Aggregated scores (category breakdowns, average)
-- `evals/qa_eval/results/<timestamp>/_analysis.md` — Iteration log (top/bottom performers, category insights)
-- `evals/qa_eval/docs/IMPROVEMENT_SUMMARY_*.md` — Historical tracking (score vs baseline)
-- `evals/qa_eval/docs/DEMO_QUESTIONS_*.md` — Top 5 questions with full reasoning (if score ≥ 0.70)
-
-**Time:** ~5-10 min (smoke), ~20-30 min (full eval)
-
-### Phase 3: Iteration (If Needed)
-```bash
-# After fixes to prompts.py or question file, re-run:
-python evals/qa_eval/run_eval.py --full --input "question_vN.txt" --set-baseline
-```
-
-**`--set-baseline` flag:** Writes results to `evals/baseline.json` for tracking across iterations
-**Threshold:** Iterate if `average < 0.72`; max 1 iteration per eval cycle
+**Score history:** 0.546 (baseline) → 0.784 (v2+v3 combined) → 0.773 (Session 6 final).
 
 ---
 
 ## Observability & Tracing
 
-### LangSmith Integration
-- Optional distributed tracing (disabled by default; enable via `LANGCHAIN_TRACING_V2=true`)
-- Emits trace for each query execution:
-  - Full graph flow captured as nested spans (node names are LangSmith span labels)
-  - LLM calls tracked: model, tokens, cost
-  - Token cost posted to LangSmith run metadata via `RunCollectorCallbackHandler`
-  - View in LangSmith dashboard for debugging
+### LangSmith (Optional)
 
-### Logging (`app/utils/logging.py`)
-- Format: `[module_tag] message` (e.g., `[search] Embedding query...`)
-- Log level: `LOG_LEVEL` env (default: INFO)
+Enable by setting `LANGCHAIN_TRACING_V2=true` in `.env`.
+
+```mermaid
+flowchart LR
+    WS[WebSocket Handler] -->|RunCollectorCallbackHandler| GRAPH[LangGraph Execution]
+    GRAPH -->|node spans| LS[LangSmith Dashboard]
+    GRAPH -->|token counts + cost| LS
+
+    LS --> SPANS[Trace Spans — plan, retrieve, generate, evaluate, finalize]
+    LS --> COST[Metadata — tokens, cost USD, model, eval_score]
+```
+
+Tavily web search is decorated with `@traceable` for LangSmith span capture.
+
+### Application Logging
+
+- Format: `[tag] message` (e.g., `[search] Embedding query...`, `[node] plan_search complete`)
+- Log level: `LOG_LEVEL` env (default: `INFO`)
 - Tags: `[ws]`, `[graph]`, `[search]`, `[llm]`, `[node]`, `[rag]`
 
 ---
 
-## Configuration
+## Configuration Reference
 
-All env vars read in `config.py` via pydantic-settings:
+All env vars are defined in `config.py` (pydantic-settings):
 
-```python
-# Core
-DATABASE_URL = postgresql://...
-ENVIRONMENT = production | development
-LOG_LEVEL = INFO | DEBUG | WARNING
+```bash
+# Database (Supabase)
+DATABASE_URL=postgresql://postgres.[ref]:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
 
-# LLM
-DEEPSEEK_API_KEY = ...
-CEREBRAS_API_KEY = ...
-OPENAI_API_KEY = ...
-LLM_PROVIDER = auto | deepseek | cerebras | openai
+# LLM Providers
+DEEPSEEK_API_KEY=sk-...       # Primary — no daily quota
+CEREBRAS_API_KEY=csk-...      # Secondary — fast but has daily limit
+OPENAI_API_KEY=sk-...         # Fallback + eval judge (GPT-4o)
+LLM_PROVIDER=auto             # auto | deepseek | cerebras | openai
 
-# Data sources
-TAVILY_API_KEY = ...  # optional web search
+# Web Search
+TAVILY_API_KEY=tvly-...       # Optional; enables web_search mode
 
-# Auth
-AUTH_DISABLED = true | false                  # true for local dev (default)
-CLERK_SECRET_KEY = ...
-CLERK_PUBLISHABLE_KEY = ...
+# Auth (Clerk)
+AUTH_DISABLED=true            # true = anonymous sessions (default for local dev)
+CLERK_SECRET_KEY=sk_...       # Required when AUTH_DISABLED=false
+CLERK_PUBLISHABLE_KEY=pk_...  # Required when AUTH_DISABLED=false
 
 # Observability (LangSmith)
-LANGCHAIN_TRACING_V2 = false | true           # Enable LangSmith
-LANGSMITH_API_KEY = lsv2_...
-LANGSMITH_PROJECT = alphalens
+LANGCHAIN_TRACING_V2=false    # Set to true to enable tracing
+LANGSMITH_API_KEY=lsv2_...
+LANGSMITH_PROJECT=alphalens
 
-# Feature flags
-CACHE_DISABLED = false  # disable semantic cache during eval
+# Feature Flags
+CACHE_DISABLED=false          # Set true during evals to prevent cache interference
 
-# CORS
-CORS_ORIGINS = http://localhost:3000,...
+# Server
+ENVIRONMENT=development       # development | production
+LOG_LEVEL=INFO
+CORS_ORIGINS=http://localhost:5175,https://alphalens-production-15e1.up.railway.app
 ```
 
 ---
 
 ## Deployment
 
-**Production Build:**
-1. Run ingestion scripts (`scripts/ingestion/`) once locally or on server
-2. `npm run build` (frontend) → `frontend/dist`
-3. `python -m uvicorn app:app --host 0.0.0.0 --port 8000`
-4. FastAPI auto-serves SPA from `frontend/dist`
+### Railway (Production)
 
-**Railway Deployment:**
-- `Procfile`: `web: python -m uvicorn app:app --host 0.0.0.0 --port $PORT`
-- `railway.toml`: healthcheck `/health`, restart on failure
-- Env vars configured in Railway dashboard
-- Database: PostgreSQL on Railway (Railway PostgreSQL add-on)
-
-**Local Development:**
 ```bash
-# Terminal 1: Backend
+# 1. Build frontend
+cd frontend && npm run build && cd ..
+
+# 2. Procfile (Railway uses this)
+web: uvicorn app:app --host 0.0.0.0 --port $PORT --workers 1
+
+# 3. FastAPI serves React SPA from frontend/dist in production
+#    Logos and stack_logos served from static mounts
+```
+
+- **App hosting:** Railway (via Procfile + `railway.toml`)
+- **Database:** Supabase PostgreSQL + pgvector
+- **Frontend build:** Railway builds via nixpacks.toml (`npm run build` pre-deploy)
+- **Health check:** `GET /health` (configured in `railway.toml`)
+- **Env vars:** Set in Railway dashboard
+
+### Local Development
+
+```bash
+# Terminal 1: Backend (from project root, .venv activated)
 python -m uvicorn app:app --reload --port 8000
 
 # Terminal 2: Frontend
-cd frontend && npm run dev  # port 5175, proxies /api + /ws to :8000
+cd frontend && npm run dev   # → http://localhost:5175
+# Vite proxies /api, /ws, /sessions, /health to localhost:8000
 ```
 
+---
+
+## Cross-Component Summary
+
+```mermaid
+flowchart LR
+    APP[app/ — FastAPI]
+    AGENT[agent/graph/ — LangGraph]
+    RAG[agent/rag/ — Search + Generation]
+    LLM[agent/llm/ — LLM Abstraction]
+    DB[(Supabase PostgreSQL)]
+    FE[frontend/ — React SPA]
+    EVAL[evals/qa_eval/ — Eval Harness]
+    INGEST[db/ingestion/ — Data Pipeline]
+
+    FE -->|WS + REST| APP
+    APP --> AGENT
+    AGENT --> RAG
+    RAG --> LLM
+    RAG --> DB
+    LLM -->|DeepSeek / Cerebras / OpenAI| EXT((External APIs))
+    INGEST --> DB
+    EVAL -->|runs full pipeline| AGENT
+    EVAL -->|GPT-4o judge| LLM
+
+    style APP fill:#dbeafe,color:#111111
+    style AGENT fill:#dcfce7,color:#111111
+    style RAG fill:#fef3c7,color:#111111
+    style LLM fill:#fce7f3,color:#111111
+    style DB fill:#f3f4f6,color:#111111
+    style FE fill:#ede9fe,color:#111111
+```
+
+| Component | Role | Depends On |
+|-----------|------|-----------|
+| `app/` | HTTP + WebSocket server | `agent/`, `config.py` |
+| `agent/graph/` | LangGraph orchestration | `agent/llm/`, `agent/rag/` |
+| `agent/llm/` | LLM provider abstraction | DeepSeek, Cerebras, OpenAI APIs |
+| `agent/rag/` | Hybrid search + context generation | Supabase DB, sentence-transformers |
+| `frontend/` | React SPA | REST + WebSocket from `app/` |
+| `db/ingestion/` | Data pipeline | SEC EDGAR, StockAnalysis.com, Supabase |
+| `evals/qa_eval/` | Quality measurement | Full LangGraph pipeline, GPT-4o |

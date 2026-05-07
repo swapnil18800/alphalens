@@ -1,0 +1,110 @@
+{
+  "label": "out_of_scope",
+  "timestamp": "2026-05-07T14:38:38.462814",
+  "summary": {
+    "label": "out_of_scope",
+    "question": "What is the best recipe for chocolate lava cake with step-by-step instructions?",
+    "web_search": false,
+    "session_id": "dc790755-d9db-4d11-bd5c-7832fe396699",
+    "answer_preview": "I focus on US equity research \u2014 SEC 10-K filings, earnings call transcripts, and financial news for public companies. That question seems outside my scope. Try asking about a specific company's financials, risk factors, guidance, or earnings.",
+    "answer_length": 242,
+    "citations": 0,
+    "confidence": 1.0,
+    "execution_path": "finalize_early",
+    "steps_seen": [
+      "analyze",
+      "analyze",
+      "finalize"
+    ],
+    "retry_fired": false
+  },
+  "events": [
+    {
+      "type": "ack",
+      "session_id": "dc790755-d9db-4d11-bd5c-7832fe396699"
+    },
+    {
+      "type": "status",
+      "step": "analyze",
+      "message": "Reading your question\u2026"
+    },
+    {
+      "type": "session_updated",
+      "session_id": "dc790755-d9db-4d11-bd5c-7832fe396699",
+      "title": "Ultimate Chocolate Lava Cake Guide"
+    },
+    {
+      "type": "status",
+      "step": "analyze",
+      "message": "Identified: no specific ticker \u00b7 intent=general \u00b7 mode=rag_only \u00b7 1 sub-question(s)"
+    },
+    {
+      "type": "status",
+      "step": "finalize",
+      "message": "Done"
+    },
+    {
+      "type": "answer",
+      "answer": "I focus on US equity research \u2014 SEC 10-K filings, earnings call transcripts, and financial news for public companies. That question seems outside my scope. Try asking about a specific company's financials, risk factors, guidance, or earnings.",
+      "citations": [],
+      "confidence": 1.0,
+      "reasoning": [
+        {
+          "step": "analyze",
+          "message": "Reading your question\u2026"
+        },
+        {
+          "step": "analyze",
+          "message": "Identified: no specific ticker \u00b7 intent=general \u00b7 mode=rag_only \u00b7 1 sub-question(s)"
+        },
+        {
+          "step": "finalize",
+          "message": "Done"
+        }
+      ],
+      "session_id": "dc790755-d9db-4d11-bd5c-7832fe396699"
+    }
+  ],
+  "backend_log_excerpt": [
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 669, in app",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 638, in lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 660, in __call__",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 669, in app",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 638, in lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 660, in __call__",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 669, in app",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\starlette\\routing.py\", line 638, in lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "  File \"C:\\Users\\HP\\AppData\\Roaming\\Python\\Python314\\site-packages\\fastapi\\routing.py\", line 216, in merged_lifespan",
+    "14:37:26 | INFO     | agent.graph.nodes | [node] analyze_question | q=Give me a detailed breakdown of NVIDIA's revenue by segment for FY2024 and FY202",
+    "14:37:30 | INFO     | agent.graph.nodes | [node] analyze_question done in 4.6s | {'tickers': ['NVDA'], 'years': [2024, 2025], 'sub_questions': [\"What was NVIDIA's total revenue and revenue by segment (Data Center, Gaming, Professional Visualization, Automotive) for FY2024?\", \"What was NVIDIA's total revenue and revenue by segment for FY2025?\", 'What were the year-over-year growth percentages for each segment from FY2024 to FY2025?', \"What management commentary or key drivers were mentioned for each segment's performance in FY2024 and FY2025?\"], 'intent': 'revenue', 'query_mode': 'rag_only', 'include_news': False, 'is_out_of_scope': False, 'iteration_count': 0, 'cache_hit': False, 'rewritten_query': None}",
+    "14:37:30 | INFO     | agent.graph.nodes | [node] execute_search | mode=rag_only | tickers=['NVDA'] | iter=0 | sub_q=4 | chunks_per=16",
+    "14:38:06 | INFO     | agent.graph.nodes | [node] generate_response | chunks=94 | iter=0",
+    "14:38:17 | INFO     | agent.graph.nodes | [node] evaluate_response | iter=0",
+    "14:38:17 | INFO     | agent.graph.nodes | [node] evaluate_response score=0.82 reason=Detailed grounded answer with citations and data",
+    "14:38:17 | INFO     | agent.graph.nodes | [node] finalize | best_score=0.82",
+    "14:38:22 | INFO     | agent.graph.nodes | [node] analyze_question | q=What did NVIDIA CEO Jensen Huang say about the Blackwell GPU architecture and AI",
+    "14:38:25 | INFO     | agent.graph.nodes | [node] analyze_question done in 3.1s | {'tickers': ['NVDA'], 'years': [], 'sub_questions': ['What did NVIDIA CEO Jensen Huang say about the Blackwell GPU architecture in the most recent earnings call?', 'What did Jensen Huang say about AI demand trends during the call?', 'What specific revenue guidance or customer demand signals did Jensen Huang mention?'], 'intent': 'earnings', 'query_mode': 'web_only', 'include_news': True, 'is_out_of_scope': False, 'iteration_count': 0, 'cache_hit': False, 'rewritten_query': None}",
+    "14:38:25 | INFO     | agent.graph.nodes | [node] execute_search | mode=web_only | tickers=['NVDA'] | iter=0 | sub_q=3 | chunks_per=12",
+    "14:38:25 | INFO     | agent.graph.nodes | [node] generate_response | chunks=0 | iter=0",
+    "14:38:27 | INFO     | agent.graph.nodes | [node] evaluate_response | iter=0",
+    "14:38:30 | INFO     | agent.graph.nodes | [node] evaluate_response score=1.00 reason=The answer correctly states that the required information is not in the context, matching the context which contains no relevant data about NVIDIA or Jensen Huang.",
+    "14:38:30 | INFO     | agent.graph.nodes | [node] finalize | best_score=1.00",
+    "14:38:35 | INFO     | agent.graph.nodes | [node] analyze_question | q=What is the best recipe for chocolate lava cake with step-by-step instructions?",
+    "  File \"C:\\Users\\HP\\Desktop\\ai-projects\\alphalens\\agent\\graph\\nodes.py\", line 162, in node_analyze_question",
+    "    logger.info(\"[node] analyze_question: web_only query with web_search OFF \\u2192 out_of_scope\")",
+    "Message: '[node] analyze_question: web_only query with web_search OFF \\u2192 out_of_scope'",
+    "14:38:37 | INFO     | agent.graph.nodes | [node] analyze_question done in 2.5s | {'tickers': [], 'years': [], 'sub_questions': ['What is the best recipe for chocolate lava cake with step-by-step instructions?'], 'intent': 'general', 'query_mode': 'rag_only', 'include_news': False, 'is_out_of_scope': True, 'iteration_count': 0, 'cache_hit': False, 'rewritten_query': None}",
+    "14:38:37 | INFO     | agent.graph.nodes | [node] finalize_early | reason=out_of_scope"
+  ]
+}

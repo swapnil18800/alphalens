@@ -1,0 +1,237 @@
+{
+  "year_scoped": {
+    "web_search": false,
+    "expected_behavior": "Temporal resolution via filing_year_lookup. Retrieval must filter to the specified year. Citations must be year-correct.",
+    "questions": [
+      "What did Meta's management say about AI infrastructure CapEx in FY2024 earnings calls only, not FY2025 or FY2026?",
+      "What did Tesla say about FSD progress in its FY2023 10-K only, not later filings?"
+    ],
+    "ground_truth_map": {
+      "What did Meta's management say about AI infrastructure CapEx in FY2024 earnings calls only, not FY2025 or FY2026?": {
+        "ground_truth": "Meta's FY2024 earnings calls (year=2024) include commentary from Zuckerberg and CFO Susan Li on aggressive AI infrastructure CapEx ramp, Llama open-source LLM strategy, and AI-powered ad revenue gains. The answer must cite [TC-META-Q*-FY2024] chunks (year=2024), not FY2025 or FY2026 transcripts. If answer cites FY2025 or later, it is a year-filter failure.",
+        "key_facts": [
+          "Must cite FY2024 (year=2024) transcript chunks only.",
+          "AI infrastructure CapEx as multi-year strategic investment.",
+          "Llama open-source LLM family mentioned.",
+          "Citing FY2025/FY2026 transcripts = FAIL."
+        ]
+      },
+      "What did Tesla say about FSD progress in its FY2023 10-K only, not later filings?": {
+        "ground_truth": "Tesla's FY2023 10-K describes Full Self-Driving (FSD) as a supervised system requiring driver attention, highlights NHTSA investigations and safety concerns, and discusses Autopilot/FSD recall in late 2023. The answer must cite [SEC-TSLA-2023] or equivalent FY2023 filing chunk. Citing FY2024 or FY2025 10-K = year-filter failure.",
+        "key_facts": [
+          "Must cite FY2023 10-K chunk (filing_year 2023 or 2024 for FY2023 content).",
+          "FSD described as supervised, requires driver attention.",
+          "NHTSA investigations and recall mentioned.",
+          "Citing FY2024/FY2025 filings = FAIL."
+        ]
+      }
+    }
+  },
+  "cross_company_quant": {
+    "web_search": false,
+    "expected_behavior": "3-entity Cartesian decomposition (3 entities x 1 metric x 1 year = 3 sub-questions). Per-ticker isolation. Aggregator produces table.",
+    "questions": [
+      "Rank AMD, Intel, and NVIDIA by FY2024 data center segment revenue based on their annual filings.",
+      "Compare Apple, Microsoft, and Alphabet operating margins for FY2024 in a table using their 10-K filings."
+    ],
+    "ground_truth_map": {
+      "Rank AMD, Intel, and NVIDIA by FY2024 data center segment revenue based on their annual filings.": {
+        "ground_truth": "NVIDIA FY2024 (ended Jan 2024) Data Center revenue was approximately $47.5B. AMD FY2024 Data Center segment revenue was approximately $12.6B. Intel FY2024 Data Center and AI segment revenue was approximately $12.8B (Datacenter and AI). Ranking: NVIDIA >> Intel ≈ AMD. Each should be cited from respective 10-K filings.",
+        "key_facts": [
+          "NVIDIA data center ~$47.5B (FY2024 = fiscal year ending Jan 2024).",
+          "AMD data center ~$12.6B.",
+          "Intel data center/AI ~$12-13B.",
+          "Must cite [SEC-NVDA-*], [SEC-AMD-*], [SEC-INTC-*].",
+          "Answer should rank them explicitly."
+        ]
+      },
+      "Compare Apple, Microsoft, and Alphabet operating margins for FY2024 in a table using their 10-K filings.": {
+        "ground_truth": "AAPL FY2024 operating margin ~31.5%. MSFT FY2024 operating margin ~44.6%. GOOGL (Alphabet) FY2024 operating margin ~28-30% (consolidated). A markdown table comparing all three is expected. Each must cite its respective 10-K.",
+        "key_facts": [
+          "AAPL ~31-32% operating margin.",
+          "MSFT ~44-45% operating margin.",
+          "GOOGL ~28-30% operating margin.",
+          "Must cite all three companies' 10-K chunks.",
+          "Should produce a markdown table."
+        ]
+      }
+    }
+  },
+  "multi_year_trend": {
+    "web_search": false,
+    "expected_behavior": "1 entity x 1 metric x 3 years = 3 sub-questions. Multi-period fan-out retrieval. Aggregator with YoY growth.",
+    "questions": [
+      "Trace Meta Reality Labs operating loss from FY2022 to FY2024 with figures for each year.",
+      "Show Microsoft Intelligent Cloud segment revenue FY2022 to FY2024 with year-over-year growth rates."
+    ],
+    "ground_truth_map": {
+      "Trace Meta Reality Labs operating loss from FY2022 to FY2024 with figures for each year.": {
+        "ground_truth": "Meta Reality Labs operating losses: FY2022 ~$13.7B, FY2023 ~$16.1B, FY2024 ~$17.7B. Loss has widened each year. Revenue from Reality Labs is small (~$2B/year in hardware/software). Cumulative loss 2022-2024 exceeds $47B. Each year must cite respective [SEC-META-*] annual filing.",
+        "key_facts": [
+          "FY2022 Reality Labs op loss ~$13.7B.",
+          "FY2023 Reality Labs op loss ~$16.1B.",
+          "FY2024 Reality Labs op loss ~$17.7B.",
+          "Must cite SEC-META chunks for each year.",
+          "Should note widening trend."
+        ]
+      },
+      "Show Microsoft Intelligent Cloud segment revenue FY2022 to FY2024 with year-over-year growth rates.": {
+        "ground_truth": "Microsoft Intelligent Cloud segment revenue: FY2022 ~$75.3B, FY2023 ~$87.9B (+17% YoY), FY2024 ~$105.4B (+20% YoY). Azure growth was a primary driver each year. Each figure should cite the respective 10-K filing.",
+        "key_facts": [
+          "FY2022 Intelligent Cloud ~$75.3B.",
+          "FY2023 ~$87.9B, ~17% YoY growth.",
+          "FY2024 ~$105.4B, ~20% YoY growth.",
+          "Must cite [SEC-MSFT-*] chunks for each year.",
+          "Should include YoY growth percentages."
+        ]
+      }
+    }
+  },
+  "transcript_grounding": {
+    "web_search": false,
+    "expected_behavior": "Transcript-preferred retrieval. Transcript→10K fallback if empty. Tests earnings_grounding fix.",
+    "questions": [
+      "What did Microsoft management say about Azure growth deceleration in FY2024 Q3 and Q4 earnings calls?",
+      "What did NVIDIA's CEO say about Blackwell production timeline in earnings calls?"
+    ],
+    "ground_truth_map": {
+      "What did Microsoft management say about Azure growth deceleration in FY2024 Q3 and Q4 earnings calls?": {
+        "ground_truth": "In FY2024 Q3 and Q4 earnings calls, Microsoft CEO Satya Nadella and CFO Amy Hood discussed Azure revenue growth in the range of 28-31% YoY, with capacity constraints cited as a limiting factor rather than demand softness. AI workloads were highlighted as the primary growth driver. The answer must cite transcript chunks from Q3-Q4 FY2024 period. If transcripts are unavailable, 10-K fallback is acceptable but should note the limitation.",
+        "key_facts": [
+          "Azure growth ~28-31% range in Q3/Q4 FY2024.",
+          "Capacity constraints mentioned, not demand weakness.",
+          "AI workloads as growth driver.",
+          "Must cite [TC-MSFT-Q3/Q4-FY2024] or equivalent transcript.",
+          "10-K fallback acceptable if transcripts unavailable."
+        ]
+      },
+      "What did NVIDIA's CEO say about Blackwell production timeline in earnings calls?": {
+        "ground_truth": "In NVIDIA's FY2025 earnings calls (calendar 2024-2025), CEO Jensen Huang discussed Blackwell GPU production ramping in Q4 FY2025 and beyond, with demand described as exceeding supply. He mentioned 'insane' demand for Blackwell architecture. Production yield improvements and customer deployments at hyperscalers were discussed. Must cite NVDA transcript chunks.",
+        "key_facts": [
+          "Blackwell production ramp Q4 FY2025 timeframe.",
+          "Demand exceeds supply according to Jensen Huang.",
+          "Hyperscaler customer deployments mentioned.",
+          "Must cite [TC-NVDA-*] transcript chunks.",
+          "If no transcript: 10-K fallback acceptable."
+        ]
+      }
+    }
+  },
+  "strict_rag_hard": {
+    "web_search": false,
+    "expected_behavior": "Strict grounding from specific filings. No fabrication. Honest citation with exact figures.",
+    "questions": [
+      "Per Amazon's FY2024 10-K only, what was AWS operating income and operating margin?",
+      "Per Alphabet's FY2024 10-K only, what was Other Bets segment revenue and operating loss?"
+    ],
+    "ground_truth_map": {
+      "Per Amazon's FY2024 10-K only, what was AWS operating income and operating margin?": {
+        "ground_truth": "Amazon's FY2024 10-K reports AWS segment: revenue ~$107.6B, operating income ~$39.8B, operating margin approximately 37%. These figures represent a significant year-over-year improvement. The answer must cite [SEC-AMZN-*] chunks directly. No web or transcript sources.",
+        "key_facts": [
+          "AWS revenue ~$107.6B for FY2024.",
+          "AWS operating income ~$39.8B.",
+          "AWS operating margin ~37%.",
+          "Must cite [SEC-AMZN-*] 10-K chunk.",
+          "Must not fabricate figures not in the filing."
+        ]
+      },
+      "Per Alphabet's FY2024 10-K only, what was Other Bets segment revenue and operating loss?": {
+        "ground_truth": "Alphabet's FY2024 10-K: Other Bets segment revenue was approximately $1.5-2B, with an operating loss of approximately $1.1-1.5B. Other Bets includes Waymo, Verily, Wing, and other moonshots. The answer must cite [SEC-GOOGL-*] or [SEC-GOOG-*] 10-K chunks.",
+        "key_facts": [
+          "Other Bets revenue ~$1.5-2B for FY2024.",
+          "Other Bets operating loss ~$1-1.5B.",
+          "Includes Waymo, Verily, Wing.",
+          "Must cite [SEC-GOOGL-*] or [SEC-GOOG-*] chunk.",
+          "Must not fabricate figures."
+        ]
+      }
+    }
+  },
+  "hybrid_dual": {
+    "web_search": true,
+    "expected_behavior": "Filing + web aggregation. Must cite both [SEC/TC-*] and [NEWS:*] markers. Tests hybrid_routing fix.",
+    "questions": [
+      "What did NVIDIA's most recent 10-K say about AI accelerator competition, and what 2025-2026 news exists about export controls affecting NVIDIA?",
+      "Combine Microsoft FY2024 10-K AI strategy disclosures with recent 2025-2026 news on Copilot enterprise adoption."
+    ],
+    "ground_truth_map": {
+      "What did NVIDIA's most recent 10-K say about AI accelerator competition, and what 2025-2026 news exists about export controls affecting NVIDIA?": {
+        "ground_truth": "NVIDIA's 10-K discusses competitive risks from AMD, Intel, Google TPUs, AWS Trainium, and custom silicon. Export control risks (BIS regulations, China restrictions) are highlighted as a key risk factor. Recent news includes US export restrictions to China on H100/H20 chips, resulting in write-downs and guidance revisions. A good answer cites at least one [SEC-NVDA-*] for 10-K content and one [NEWS:*] for recent export control developments.",
+        "key_facts": [
+          "10-K cites AMD, Google TPU, AWS Trainium as competitors.",
+          "Export controls to China are a key 10-K risk factor.",
+          "Recent news should cover H100/H20 export restrictions.",
+          "Must cite [SEC-NVDA-*] AND at least one [NEWS:*].",
+          "Missing either source type = partial credit only."
+        ]
+      },
+      "Combine Microsoft FY2024 10-K AI strategy disclosures with recent 2025-2026 news on Copilot enterprise adoption.": {
+        "ground_truth": "Microsoft's FY2024 10-K describes AI integration across Azure, Microsoft 365 Copilot, GitHub Copilot, and Dynamics 365. The OpenAI partnership and $13B+ investment are noted. Recent news covers Copilot+ PC rollout, Microsoft 365 Copilot seat growth, and enterprise adoption milestones. A good answer cites [SEC-MSFT-*] for 10-K strategy and [NEWS:*] for Copilot adoption news.",
+        "key_facts": [
+          "10-K mentions Azure OpenAI, Microsoft 365 Copilot, GitHub Copilot.",
+          "OpenAI partnership and investment noted in filing.",
+          "Recent news on Copilot enterprise seat growth.",
+          "Must cite [SEC-MSFT-*] AND at least one [NEWS:*].",
+          "Missing either = partial credit."
+        ]
+      }
+    }
+  },
+  "multi_hop_ratio": {
+    "web_search": false,
+    "expected_behavior": "2 entities x 2 time periods x 2 metrics = 8 sub-questions. Aggregator computes ratio from cited figures.",
+    "questions": [
+      "Compute and compare R&D as a percentage of revenue for Apple and Meta in both FY2023 and FY2024 based on their 10-K filings."
+    ],
+    "ground_truth_map": {
+      "Compute and compare R&D as a percentage of revenue for Apple and Meta in both FY2023 and FY2024 based on their 10-K filings.": {
+        "ground_truth": "Apple: FY2023 R&D ~$29.9B / revenue ~$383.3B = ~7.8%. FY2024 R&D ~$31.4B / revenue ~$391.0B = ~8.0%. Meta: FY2023 R&D ~$38.5B / revenue ~$134.9B = ~28.5%. FY2024 R&D ~$43.6B / revenue ~$164.5B = ~26.5%. Meta invests proportionally 3x more in R&D than Apple. All figures must cite respective [SEC-*] 10-K chunks.",
+        "key_facts": [
+          "AAPL FY2023 R&D/revenue ~7.8%, FY2024 ~8.0%.",
+          "META FY2023 R&D/revenue ~28.5%, FY2024 ~26.5%.",
+          "Must cite both years for both companies.",
+          "Answer should compute/show the percentages explicitly.",
+          "Should note Meta invests proportionally much more in R&D."
+        ]
+      }
+    }
+  },
+  "gap_fill_trigger": {
+    "web_search": true,
+    "expected_behavior": "10-K has capacity data; web has recent guidance. Tests tavily_extract gap_filler for no_info sub-questions.",
+    "questions": [
+      "How does Tesla's recent vehicle delivery guidance compare to their disclosed production capacity in the 10-K?"
+    ],
+    "ground_truth_map": {
+      "How does Tesla's recent vehicle delivery guidance compare to their disclosed production capacity in the 10-K?": {
+        "ground_truth": "Tesla's 10-K discloses annual production capacity across Fremont, Gigafactory Texas, Berlin, and Shanghai facilities (combined multi-million units/year). Recent guidance from earnings calls or news covers 2024-2025 delivery targets and actual deliveries (~1.8M in 2023, with varying 2024 targets). A good answer cites [SEC-TSLA-*] for capacity and [NEWS/TC] for recent guidance, noting the gap between capacity and actual deliveries.",
+        "key_facts": [
+          "10-K discloses production capacity at multiple Gigafactories.",
+          "Recent guidance covers delivery targets for 2024-2025.",
+          "Must cite [SEC-TSLA-*] for capacity.",
+          "Must cite transcript or news for delivery guidance.",
+          "Should compare the two numbers or note if gap_filler recovered the guidance data."
+        ]
+      }
+    }
+  },
+  "private_company_gap": {
+    "web_search": true,
+    "expected_behavior": "Honest refusal for private company with no SEC filing. Web fallback if publicly reported figures available.",
+    "questions": [
+      "What was Stripe's FY2024 revenue?"
+    ],
+    "ground_truth_map": {
+      "What was Stripe's FY2024 revenue?": {
+        "ground_truth": "Stripe is a private company and does not file with the SEC, so no 10-K or earnings transcript exists in the database. Publicly reported estimates (from news) suggest Stripe's 2024 revenue was approximately $16-17B based on leaked figures and analyst estimates. A good answer acknowledges Stripe is private (no filing), and if web search is on, cites any [NEWS:*] source with the estimated revenue figure. Must not fabricate an exact figure as if from an SEC filing.",
+        "key_facts": [
+          "Stripe is private — no SEC filing exists.",
+          "Should acknowledge no 10-K/transcript data available.",
+          "Web-sourced estimate ~$16-17B for 2024 is acceptable.",
+          "Must cite [NEWS:*] if using a web figure.",
+          "Must NOT present web figure as an SEC-verified fact."
+        ]
+      }
+    }
+  }
+}

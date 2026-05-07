@@ -378,7 +378,7 @@ ORDER BY ticker, year, quarter;
 
         # Write report
         REPORT_FILE.parent.mkdir(parents=True, exist_ok=True)
-        REPORT_FILE.write_text(markdown)
+        REPORT_FILE.write_text(markdown, encoding='utf-8')
         print(f"✓ Audit report written to {REPORT_FILE}")
         print(f"  - Total chunks: {total_10k_chunks + total_transcript_chunks:,}")
         print(f"  - Vectors embedded: {vector_stats['ten_k_embedded'] + vector_stats['tc_embedded']:,}")

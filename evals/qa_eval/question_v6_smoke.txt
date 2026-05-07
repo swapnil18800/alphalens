@@ -1,0 +1,93 @@
+{
+  "single_simple": {
+    "web_search": false,
+    "expected_behavior": "Single sub-question fast path. Basic retrieval. Aggregator handles trivial single-fact input.",
+    "questions": [
+      "What was Apple's total revenue in FY2024 according to its annual report?"
+    ],
+    "ground_truth_map": {
+      "What was Apple's total revenue in FY2024 according to its annual report?": {
+        "ground_truth": "Apple (AAPL) reported total net sales of approximately $391.0 billion for fiscal year 2024 (ended September 2024). This was a slight increase from $383.3B in FY2023. Services segment was the fastest-growing at about $96.2B. Products revenue was approximately $294.9B.",
+        "key_facts": [
+          "Total revenue approximately $391B for FY2024.",
+          "Must cite [SEC-AAPL-*] or equivalent 10-K chunk.",
+          "Should not fabricate a different figure."
+        ]
+      }
+    }
+  },
+  "cross_company_simple": {
+    "web_search": false,
+    "expected_behavior": "2-axis Cartesian decomposition (2 entities x 1 metric x 1 year = 2 sub-questions). Per-entity retrieval isolation tested.",
+    "questions": [
+      "Compare Apple and Microsoft operating margin in FY2024 based on their annual filings."
+    ],
+    "ground_truth_map": {
+      "Compare Apple and Microsoft operating margin in FY2024 based on their annual filings.": {
+        "ground_truth": "Apple FY2024 operating margin was approximately 31.5% (operating income ~$123.2B / revenue ~$391.0B). Microsoft FY2024 operating margin was approximately 44.6% (operating income ~$109.4B / revenue ~$245.1B). Microsoft's operating margin is significantly higher than Apple's for FY2024. Both should be cited from respective 10-K filings.",
+        "key_facts": [
+          "AAPL FY2024 operating margin approximately 31-32%.",
+          "MSFT FY2024 operating margin approximately 44-45%.",
+          "Must cite both [SEC-AAPL-*] and [SEC-MSFT-*] chunks.",
+          "Answer should include a comparison or table."
+        ]
+      }
+    }
+  },
+  "strict_refusal": {
+    "web_search": false,
+    "expected_behavior": "Honest no_info refusal when data granularity doesn't exist in filings. Validator's refusal_appropriate flag tested.",
+    "questions": [
+      "What was Apple's FY2024 R&D spending broken down by specific patent category and invention type?"
+    ],
+    "ground_truth_map": {
+      "What was Apple's FY2024 R&D spending broken down by specific patent category and invention type?": {
+        "ground_truth": "Apple's 10-K does not break down R&D spending by patent category or invention type. The 10-K reports total R&D expense of approximately $31.4B for FY2024 as a single line item. No patent-category breakdown is disclosed in SEC filings. An honest answer states the total R&D figure and explains that the requested breakdown is not available.",
+        "key_facts": [
+          "Total R&D ~$31.4B for FY2024 is available.",
+          "Patent-category breakdown does NOT exist in 10-K.",
+          "Answer must NOT fabricate a breakdown.",
+          "Should cite [SEC-AAPL-*] for the total R&D figure.",
+          "Should clearly state the breakdown is unavailable."
+        ]
+      }
+    }
+  },
+  "hybrid_web": {
+    "web_search": true,
+    "expected_behavior": "Always-parallel web search when web_flag=True. Aggregator integrating web + filing context.",
+    "questions": [
+      "What was NVIDIA's most recent quarterly revenue and what does their latest 10-K say about data center strategy?"
+    ],
+    "ground_truth_map": {
+      "What was NVIDIA's most recent quarterly revenue and what does their latest 10-K say about data center strategy?": {
+        "ground_truth": "NVIDIA's most recent quarterly results (as of mid-2025) show continued strong data center revenue driven by H100/H200/Blackwell GPU demand. The latest 10-K describes the data center segment as the primary revenue driver, covering HPC, AI training, and inference workloads. A good answer cites at least one [SEC-NVDA-*] or [TC-NVDA-*] chunk for strategy and ideally a [NEWS:*] chunk for the most recent quarter.",
+        "key_facts": [
+          "Must include data center strategy from 10-K with citation.",
+          "Should include recent quarterly revenue (from web if available).",
+          "Hybrid: should cite both filing and web sources if web is on.",
+          "Should NOT fabricate specific revenue figures without citation."
+        ]
+      }
+    }
+  },
+  "multi_part": {
+    "web_search": false,
+    "expected_behavior": "Multi-part question decomposed into labeled sections. Aggregator structural output tested.",
+    "questions": [
+      "For NVIDIA: (a) What was their FY2024 total revenue? (b) What are the primary risk factors they disclose in the 10-K?"
+    ],
+    "ground_truth_map": {
+      "For NVIDIA: (a) What was their FY2024 total revenue? (b) What are the primary risk factors they disclose in the 10-K?": {
+        "ground_truth": "(a) NVIDIA FY2024 (ended Jan 2024) total revenue was approximately $60.9 billion, up 122% YoY, driven by data center GPU demand. (b) Key 10-K risk factors include: concentration of revenue in data center/AI segment, dependency on TSMC for manufacturing, export control regulations (China), customer concentration, intense competition from AMD/Intel/custom silicon, and supply chain constraints.",
+        "key_facts": [
+          "FY2024 total revenue approximately $60.9B.",
+          "Must cite [SEC-NVDA-*] for both parts.",
+          "Answer should use labeled sections (a) and (b).",
+          "Risk factors should include at least 3 specific items from the filing.",
+          "Should not confuse FY2024 ($60.9B) with FY2025 (~$130B)."
+        ]
+      }
+    }
+  }
+}
